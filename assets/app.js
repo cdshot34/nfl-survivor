@@ -39,6 +39,7 @@
   table = Survivor.standings(league, picks, weeks);
 
   renderDeadline(weeks[focus]);
+  renderSurvivors();
   renderBanner();
   renderPlayers(focus);
   renderBoard();
@@ -74,6 +75,25 @@
     };
     tick();
     setInterval(tick, 1000);
+  }
+
+  /* ---------- survivor counter ---------- */
+
+  function renderSurvivors() {
+    const total = table.rows.length;
+    const alive = table.alive.length;
+    $('survivors').hidden = false;
+    $('surv-num').textContent = alive;
+    $('surv-total').textContent = total;
+    $('survivors').classList.toggle('thin', alive <= 2 && alive > 0);
+    $('survivors').classList.toggle('over', alive === 0);
+
+    // Board order, so the strip reads the same way every week.
+    $('surv-chips').innerHTML = table.rows.map(r =>
+      `<span class="surv-chip ${r.alive ? 'in' : 'out'}" style="--accent:${r.player.color}">` +
+        `<span class="dot"></span>${r.player.name}` +
+        (r.alive ? '' : `<span class="wk">wk ${r.outWeek}</span>`) +
+      `</span>`).join('');
   }
 
   /* ---------- outcome banner ---------- */

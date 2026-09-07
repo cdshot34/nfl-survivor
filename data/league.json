@@ -32,5 +32,11 @@
       "name": "Gavin",
       "color": "#ffb340"
     }
-  ]
+  ],
+  "repo": {
+    "owner": "cdshot34",
+    "name": "nfl-survivor",
+    "branch": "main",
+    "picksPath": "data/picks.json"
+  }
 }

@@ -15,7 +15,7 @@
       <h1>Enter picks</h1>
       <a class="ghost-btn" href="index.html">Back to the board</a>
     </div>
-    <p class="tagline">Commissioner only. Pick teams here, then paste the JSON into <code>data/picks.json</code>.</p>
+    <p class="tagline">Commissioner only. Set the picks, hit save, done.</p>
   </div>
 </header>
 
@@ -35,32 +35,71 @@
   </section>
 
   <section>
-    <h2 class="sec-title">data/picks.json</h2>
-    <textarea class="out-json" id="out" spellcheck="false" readonly></textarea>
-    <div class="controls" style="margin-top:.7rem">
-      <button id="copy">Copy JSON</button>
-      <button id="download" class="secondary">Download file</button>
-      <span id="copied" class="dl-when"></span>
+    <div class="save-bar">
+      <button id="save-gh">Save picks</button>
+      <span class="save-status" id="save-status"></span>
     </div>
-    <ol class="steps">
-      <li>Set each player's pick above.</li>
-      <li>Copy the JSON (or download it).</li>
-      <li>Replace the contents of <code>data/picks.json</code> in your repo and commit.</li>
-      <li>The board updates within a minute of the GitHub Pages rebuild.</li>
-    </ol>
+    <p class="save-hint" id="save-hint"></p>
+  </section>
+
+  <section>
+    <details id="token-box" class="drop">
+      <summary>GitHub access token <span class="tok-state" id="tok-state"></span></summary>
+      <div class="drop-body">
+        <p class="steps-intro">
+          Saving commits straight to <code id="repo-label"></code>. That needs a token, once per device.
+        </p>
+        <ol class="steps">
+          <li>Open <a id="tok-link" href="#" target="_blank" rel="noopener">the fine-grained token page</a>.</li>
+          <li><b>Repository access</b> &rarr; Only select repositories &rarr; pick <code id="repo-label-2"></code>.</li>
+          <li><b>Permissions</b> &rarr; Repository permissions &rarr; <b>Contents</b> &rarr; <b>Read and write</b>.</li>
+          <li>Set an expiry you're happy with, generate it, copy the value.</li>
+          <li>Paste it below and save.</li>
+        </ol>
+        <input class="field" type="password" id="token" placeholder="github_pat_..." autocomplete="off" spellcheck="false">
+        <label class="check"><input type="checkbox" id="remember" checked> Remember on this device</label>
+        <div class="controls" style="margin-top:.7rem">
+          <button id="tok-save">Save token</button>
+          <button id="tok-clear" class="secondary">Forget token</button>
+        </div>
+        <div class="warn">
+          Scope it to this one repo and nothing else. It lives in this browser only &mdash; it is never
+          committed and never leaves your device except to call the GitHub API. On a shared computer,
+          untick "remember".
+        </div>
+      </div>
+    </details>
+  </section>
+
+  <section>
+    <details class="drop">
+      <summary>Manual fallback &mdash; the raw JSON</summary>
+      <div class="drop-body">
+        <textarea class="out-json" id="out" spellcheck="false" readonly></textarea>
+        <div class="controls" style="margin-top:.7rem">
+          <button id="copy" class="secondary">Copy JSON</button>
+          <button id="download" class="secondary">Download file</button>
+          <span id="copied" class="dl-when"></span>
+        </div>
+        <p class="steps-intro">
+          Only needed if saving fails. Paste this over <code>data/picks.json</code> in the repo and commit.
+        </p>
+      </div>
+    </details>
   </section>
 
 </main>
 
 <footer class="wrap foot">
-  <p>Teams already used by a player are removed from their dropdown. Teams on bye are not listed.</p>
+  <p>Teams a player already used are greyed out. Teams on bye aren't listed.</p>
 </footer>
 
 <script src="assets/nfl.js"></script>
 <script>
 (async function () {
   const $ = id => document.getElementById(id);
-  let league, picks, wd, curWeek;
+  const TOKEN_KEY = 'survivor_gh_token';
+  let league, picks, curWeek, repo;
 
   try {
     ({ league, picks } = await Survivor.loadConfig());
@@ -71,7 +110,134 @@
     return;
   }
 
-  // Work out who is already eliminated, using only the weeks that have picks.
+  repo = league.repo || {};
+  const slug = `${repo.owner}/${repo.name}`;
+  $('repo-label').textContent = slug;
+  $('repo-label-2').textContent = slug;
+  $('tok-link').href = 'https://github.com/settings/personal-access-tokens/new';
+
+  /* ---------- token handling ---------- */
+
+  function paintTokenState() {
+    const has = !!token();
+    $('tok-state').textContent = has ? 'saved' : 'not set';
+    $('tok-state').className = 'tok-state ' + (has ? 'ok' : 'missing');
+    $('save-hint').textContent = has
+      ? `Commits to ${slug} · the live board updates about a minute later.`
+      : 'Add a token below and saving will commit for you.';
+    if (!has) $('token-box').open = true;
+  }
+
+  $('tok-save').addEventListener('click', () => {
+    const v = $('token').value.trim();
+    if (!v) return setStatus('Paste a token first.', 'err');
+    try {
+      if ($('remember').checked) localStorage.setItem(TOKEN_KEY, v);
+      else sessionStorage.setItem(TOKEN_KEY, v);
+    } catch (e) { /* private mode — keep it in memory only */ }
+    memToken = v;
+    $('token').value = '';
+    $('token-box').open = false;
+    paintTokenState();
+    setStatus('Token saved on this device.', 'ok');
+  });
+
+  $('tok-clear').addEventListener('click', () => {
+    try { localStorage.removeItem(TOKEN_KEY); sessionStorage.removeItem(TOKEN_KEY); } catch (e) {}
+    memToken = '';
+    paintTokenState();
+    setStatus('Token forgotten.', '');
+  });
+
+  let memToken = '';
+  const token = () => {
+    if (memToken) return memToken;
+    try { return localStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(TOKEN_KEY) || ''; }
+    catch (e) { return ''; }
+  };
+  paintTokenState();
+
+  /* ---------- saving ---------- */
+
+  function setStatus(msg, kind) {
+    const el = $('save-status');
+    el.className = 'save-status ' + (kind || '');
+    el.innerHTML = msg;
+  }
+
+  function b64(str) {
+    const bytes = new TextEncoder().encode(str);
+    let bin = '';
+    bytes.forEach(b => { bin += String.fromCharCode(b); });
+    return btoa(bin);
+  }
+
+  const ghHeaders = t => ({
+    'Authorization': 'Bearer ' + t,
+    'Accept': 'application/vnd.github+json',
+    'X-GitHub-Api-Version': '2022-11-28'
+  });
+
+  async function currentSha(t) {
+    const url = `https://api.github.com/repos/${repo.owner}/${repo.name}/contents/` +
+                `${repo.picksPath}?ref=${repo.branch}`;
+    const res = await fetch(url, { headers: ghHeaders(t), cache: 'no-store' });
+    if (res.status === 404) return null;          // file doesn't exist yet — fine, we create it
+    if (!res.ok) throw await ghError(res);
+    return (await res.json()).sha;
+  }
+
+  async function ghError(res) {
+    let detail = '';
+    try { detail = (await res.json()).message || ''; } catch (e) {}
+    const map = {
+      401: 'Token rejected — it may be expired or mistyped.',
+      403: 'Token lacks permission. It needs Contents: Read and write on this repo.',
+      404: `Cannot see ${slug}. Check the token has this repository selected.`,
+      409: 'Someone else changed the file. Reload and re-enter this week.',
+      422: 'GitHub refused the commit.'
+    };
+    return new Error((map[res.status] || `GitHub returned ${res.status}.`) +
+                     (detail ? ` (${detail})` : ''));
+  }
+
+  $('save-gh').addEventListener('click', async () => {
+    const t = token();
+    if (!t) {
+      $('token-box').open = true;
+      return setStatus('No token saved yet — add one below.', 'err');
+    }
+    const week = Number($('week-sel').value);
+    $('save-gh').disabled = true;
+    setStatus('Saving…', '');
+
+    try {
+      const sha = await currentSha(t);
+      const url = `https://api.github.com/repos/${repo.owner}/${repo.name}/contents/${repo.picksPath}`;
+      const body = {
+        message: `Week ${week} picks`,
+        content: b64($('out').value),
+        branch: repo.branch
+      };
+      if (sha) body.sha = sha;
+
+      const res = await fetch(url, { method: 'PUT', headers: ghHeaders(t), body: JSON.stringify(body) });
+      if (!res.ok) throw await ghError(res);
+
+      const out = await res.json();
+      const short = out.commit.sha.slice(0, 7);
+      setStatus(`Saved as <a href="${out.commit.html_url}" target="_blank" rel="noopener">${short}</a>. ` +
+                `Board updates in about a minute.`, 'ok');
+    } catch (err) {
+      setStatus(err.message, 'err');
+    } finally {
+      $('save-gh').disabled = false;
+    }
+  });
+
+  /* ---------- week + pick entry ---------- */
+
+  // Who is already out, based only on weeks that have picks and are behind us.
   const played = {};
   const pickedWeeks = Object.keys(picks).map(Number).filter(w => w < curWeek).sort((a, b) => a - b);
   for (const w of pickedWeeks) played[w] = await Survivor.loadWeek(league, w);
@@ -91,7 +257,7 @@
 
   async function loadWeekUI(week) {
     $('entries').innerHTML = '<p class="tagline">Loading schedule…</p>';
-    wd = await Survivor.loadWeek(league, week);
+    const wd = await Survivor.loadWeek(league, week);
 
     $('lock-note').textContent = wd.lockAt
       ? `Locks ${fmtDateTime(wd.lockAt)} · first kickoff ${fmtDateTime(wd.firstKickoff)}` +
@@ -99,12 +265,10 @@
       : 'No games scheduled.';
 
     const teams = [...wd.teamsPlaying].sort();
-    const nameOf = {};
-    wd.games.forEach(g => { nameOf[g.home] = g.homeName; nameOf[g.away] = g.awayName; });
-    const oppOf = {};
+    const nameOf = {}, oppOf = {};
     wd.games.forEach(g => {
-      oppOf[g.home] = `vs ${g.away}`;
-      oppOf[g.away] = `at ${g.home}`;
+      nameOf[g.home] = g.homeName; nameOf[g.away] = g.awayName;
+      oppOf[g.home] = `vs ${g.away}`; oppOf[g.away] = `at ${g.home}`;
     });
 
     $('entries').innerHTML = '';
@@ -126,7 +290,8 @@
 
       el.innerHTML =
         `<h3>${p.name}</h3>` +
-        `<div class="sub">${dead ? 'Eliminated — pick ignored' : `${32 - new Set(used).size} teams still available`}</div>` +
+        `<div class="sub">${dead ? 'Eliminated — pick ignored'
+                                 : `${32 - new Set(used).size} teams still available`}</div>` +
         `<select data-player="${p.id}" ${dead ? 'disabled' : ''}>${options}</select>`;
       $('entries').appendChild(el);
     }
@@ -138,6 +303,7 @@
         league.players.forEach(p => { if (!(p.id in picks[w])) picks[w][p.id] = ''; });
         picks[w][s.dataset.player] = s.value;
         render();
+        setStatus('Unsaved changes.', 'pend');
       }));
 
     render();
@@ -148,7 +314,6 @@
     picks[week] = picks[week] || {};
     league.players.forEach(p => { if (!(p.id in picks[week])) picks[week][p.id] = ''; });
 
-    // Flag any team a player has now used twice.
     const warns = [];
     if (!league.rules.allowTeamReuse) {
       for (const p of league.players) {
@@ -164,6 +329,8 @@
     Object.keys(picks).map(Number).sort((a, b) => a - b).forEach(w => { ordered[w] = picks[w]; });
     $('out').value = JSON.stringify(ordered, null, 2) + '\n';
   }
+
+  /* ---------- manual fallback ---------- */
 
   $('copy').addEventListener('click', async () => {
     await navigator.clipboard.writeText($('out').value);
