@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "survivor",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["server.js"],
+      "port": 5199
+    }
+  ]
+}

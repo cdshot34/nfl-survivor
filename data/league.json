@@ -1,0 +1,36 @@
+{
+  "leagueName": "3 Fudgepackers and Chris",
+  "tagline": "One pick a week. No rebuys. Last one standing takes it.",
+  "season": 2026,
+  "seasonType": 2,
+  "firstWeek": 1,
+  "lastWeek": 18,
+  "lockHoursBeforeFirstGame": 24,
+  "rules": {
+    "allowTeamReuse": false,
+    "tieCountsAsLoss": true,
+    "eliminateOnMissedPick": true
+  },
+  "players": [
+    {
+      "id": "chris",
+      "name": "Chris",
+      "color": "#4ea8ff"
+    },
+    {
+      "id": "courtney",
+      "name": "Courtney",
+      "color": "#ff6ec7"
+    },
+    {
+      "id": "colin",
+      "name": "Colin",
+      "color": "#43d6a0"
+    },
+    {
+      "id": "gavin",
+      "name": "Gavin",
+      "color": "#ffb340"
+    }
+  ]
+}

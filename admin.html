@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Enter picks — NFL Survivor</title>
+<link rel="stylesheet" href="assets/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>🏈</text></svg>">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="hero-top">
+      <h1>Enter picks</h1>
+      <a class="ghost-btn" href="index.html">Back to the board</a>
+    </div>
+    <p class="tagline">Commissioner only. Pick teams here, then paste the JSON into <code>data/picks.json</code>.</p>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <div id="banner" class="banner err" hidden></div>
+
+  <section>
+    <div class="controls">
+      <label for="week-sel">Week</label>
+      <select id="week-sel"></select>
+      <span id="lock-note" class="dl-when"></span>
+    </div>
+
+    <div class="admin-grid" id="entries"></div>
+    <div id="dupwarn"></div>
+  </section>
+
+  <section>
+    <h2 class="sec-title">data/picks.json</h2>
+    <textarea class="out-json" id="out" spellcheck="false" readonly></textarea>
+    <div class="controls" style="margin-top:.7rem">
+      <button id="copy">Copy JSON</button>
+      <button id="download" class="secondary">Download file</button>
+      <span id="copied" class="dl-when"></span>
+    </div>
+    <ol class="steps">
+      <li>Set each player's pick above.</li>
+      <li>Copy the JSON (or download it).</li>
+      <li>Replace the contents of <code>data/picks.json</code> in your repo and commit.</li>
+      <li>The board updates within a minute of the GitHub Pages rebuild.</li>
+    </ol>
+  </section>
+
+</main>
+
+<footer class="wrap foot">
+  <p>Teams already used by a player are removed from their dropdown. Teams on bye are not listed.</p>
+</footer>
+
+<script src="assets/nfl.js"></script>
+<script>
+(async function () {
+  const $ = id => document.getElementById(id);
+  let league, picks, wd, curWeek;
+
+  try {
+    ({ league, picks } = await Survivor.loadConfig());
+    curWeek = await Survivor.currentWeek(league);
+  } catch (e) {
+    $('banner').hidden = false;
+    $('banner').textContent = 'Could not load league data or reach ESPN.';
+    return;
+  }
+
+  // Work out who is already eliminated, using only the weeks that have picks.
+  const played = {};
+  const pickedWeeks = Object.keys(picks).map(Number).filter(w => w < curWeek).sort((a, b) => a - b);
+  for (const w of pickedWeeks) played[w] = await Survivor.loadWeek(league, w);
+  const table = Survivor.standings(league, picks, played);
+  const isDead = id => {
+    const row = table.rows.find(r => r.player.id === id);
+    return row ? !row.alive : false;
+  };
+
+  const sel = $('week-sel');
+  for (let w = league.firstWeek; w <= league.lastWeek; w++) {
+    sel.insertAdjacentHTML('beforeend',
+      `<option value="${w}" ${w === curWeek ? 'selected' : ''}>Week ${w}</option>`);
+  }
+  sel.addEventListener('change', () => loadWeekUI(Number(sel.value)));
+  await loadWeekUI(curWeek);
+
+  async function loadWeekUI(week) {
+    $('entries').innerHTML = '<p class="tagline">Loading schedule…</p>';
+    wd = await Survivor.loadWeek(league, week);
+
+    $('lock-note').textContent = wd.lockAt
+      ? `Locks ${fmtDateTime(wd.lockAt)} · first kickoff ${fmtDateTime(wd.firstKickoff)}` +
+        (new Date() > wd.lockAt ? '  ⚠ deadline has passed' : '')
+      : 'No games scheduled.';
+
+    const teams = [...wd.teamsPlaying].sort();
+    const nameOf = {};
+    wd.games.forEach(g => { nameOf[g.home] = g.homeName; nameOf[g.away] = g.awayName; });
+    const oppOf = {};
+    wd.games.forEach(g => {
+      oppOf[g.home] = `vs ${g.away}`;
+      oppOf[g.away] = `at ${g.home}`;
+    });
+
+    $('entries').innerHTML = '';
+    for (const p of league.players) {
+      const dead = isDead(p.id);
+      const used = Survivor.usedTeams(league, picks, p.id, week);
+      const current = (picks[week] || {})[p.id] || '';
+      const el = document.createElement('div');
+      el.className = 'entry' + (dead ? ' dead' : '');
+      el.style.setProperty('--accent', p.color);
+
+      const options = ['<option value="">— no pick —</option>'].concat(
+        teams.map(t => {
+          const burned = !league.rules.allowTeamReuse && used.includes(t) && t !== current;
+          return `<option value="${t}" ${t === current ? 'selected' : ''} ${burned ? 'disabled' : ''}>` +
+                 `${nameOf[t]} (${t}) ${oppOf[t]}${burned ? ' — already used' : ''}</option>`;
+        })
+      ).join('');
+
+      el.innerHTML =
+        `<h3>${p.name}</h3>` +
+        `<div class="sub">${dead ? 'Eliminated — pick ignored' : `${32 - new Set(used).size} teams still available`}</div>` +
+        `<select data-player="${p.id}" ${dead ? 'disabled' : ''}>${options}</select>`;
+      $('entries').appendChild(el);
+    }
+
+    $('entries').querySelectorAll('select').forEach(s =>
+      s.addEventListener('change', () => {
+        const w = Number(sel.value);
+        picks[w] = picks[w] || {};
+        league.players.forEach(p => { if (!(p.id in picks[w])) picks[w][p.id] = ''; });
+        picks[w][s.dataset.player] = s.value;
+        render();
+      }));
+
+    render();
+  }
+
+  function render() {
+    const week = Number(sel.value);
+    picks[week] = picks[week] || {};
+    league.players.forEach(p => { if (!(p.id in picks[week])) picks[week][p.id] = ''; });
+
+    // Flag any team a player has now used twice.
+    const warns = [];
+    if (!league.rules.allowTeamReuse) {
+      for (const p of league.players) {
+        const all = Survivor.usedTeams(league, picks, p.id);
+        const seen = new Set(), dups = new Set();
+        all.forEach(t => seen.has(t) ? dups.add(t) : seen.add(t));
+        if (dups.size) warns.push(`${p.name} has used ${[...dups].join(', ')} more than once.`);
+      }
+    }
+    $('dupwarn').innerHTML = warns.map(w => `<div class="warn">⚠ ${w}</div>`).join('');
+
+    const ordered = {};
+    Object.keys(picks).map(Number).sort((a, b) => a - b).forEach(w => { ordered[w] = picks[w]; });
+    $('out').value = JSON.stringify(ordered, null, 2) + '\n';
+  }
+
+  $('copy').addEventListener('click', async () => {
+    await navigator.clipboard.writeText($('out').value);
+    $('copied').textContent = 'Copied.';
+    setTimeout(() => { $('copied').textContent = ''; }, 2500);
+  });
+
+  $('download').addEventListener('click', () => {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([$('out').value], { type: 'application/json' }));
+    a.download = 'picks.json';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
+})();
+</script>
+</body>
+</html>

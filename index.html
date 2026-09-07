@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>3 Fudgepackers and Chris — NFL Survivor</title>
+<link rel="stylesheet" href="assets/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>🏈</text></svg>">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="hero-top">
+      <h1 id="league-name">NFL Survivor</h1>
+      <a class="ghost-btn" href="admin.html">Enter picks</a>
+    </div>
+    <p class="tagline" id="tagline">One pick a week. No rebuys.</p>
+    <ul class="rules">
+      <li><b>1</b> pick per week</li>
+      <li>Lose or tie &rarr; <b>out</b></li>
+      <li>No team <b>twice</b></li>
+      <li>Locks <b>24h</b> before kickoff</li>
+      <li><b>No</b> rebuys</li>
+    </ul>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <section class="deadline-bar" id="deadline-bar" hidden>
+    <div class="dl-week">
+      <span class="dl-label">Now on the clock</span>
+      <span class="dl-week-num" id="dl-week-num">Week —</span>
+    </div>
+    <div class="dl-count">
+      <span class="dl-label" id="dl-label">Picks lock in</span>
+      <span class="dl-timer" id="dl-timer">—</span>
+      <span class="dl-when" id="dl-when"></span>
+    </div>
+  </section>
+
+  <div id="banner" class="banner" hidden></div>
+
+  <section>
+    <h2 class="sec-title">Players</h2>
+    <div class="players" id="players"></div>
+  </section>
+
+  <section>
+    <h2 class="sec-title">Season board</h2>
+    <div class="board-scroll">
+      <table class="board" id="board"></table>
+    </div>
+    <p class="legend">
+      <span class="chip win">Won</span>
+      <span class="chip loss">Lost</span>
+      <span class="chip live">In progress</span>
+      <span class="chip pend">Locked in</span>
+      <span class="chip none">No pick</span>
+    </p>
+  </section>
+
+  <section>
+    <h2 class="sec-title">Week <span id="games-week">—</span> scoreboard</h2>
+    <div class="games" id="games"></div>
+  </section>
+
+</main>
+
+<footer class="wrap foot">
+  <p>Results pulled live from ESPN. Picks are kept in <code>data/picks.json</code> in this repo.</p>
+  <p id="updated"></p>
+</footer>
+
+<script src="assets/nfl.js"></script>
+<script src="assets/app.js"></script>
+</body>
+</html>
