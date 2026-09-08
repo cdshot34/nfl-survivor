@@ -19,6 +19,7 @@ ESPN scoreboard. Free to host on GitHub Pages.
 | Missed pick | Counts as an elimination once that week's games are final |
 | Everyone dies same week | Those players split the pot |
 | Survivor count | Live `N of 4 still alive` strip at the top of the board |
+| Pick entry | Password protected; the GitHub token is encrypted at rest in the browser |
 
 All of these live in `data/league.json` under `rules` if you want to change one.
 
@@ -32,32 +33,45 @@ All of these live in `data/league.json` under `rules` if you want to change one.
 2. Open **`admin.html`** on the live site (the "Enter picks" button, top right).
 3. Choose the week, set each player's team. Teams they've already burned are greyed out;
    teams on bye aren't listed at all.
-4. Click **Save picks**.
+4. Click **Save picks**. (First unlock the page with your password.)
 
 That's it. The page commits `data/picks.json` to the repo for you over the GitHub API, Pages
 rebuilds, and the board grades itself from there. No downloads, no git, works from a phone.
 
-### One-time token setup
+### One-time setup per device
 
-Saving needs a token, once per browser. The page walks you through it, but in short:
+The entry page is password protected. First visit on a new browser asks for two things:
 
-1. Go to **https://github.com/settings/personal-access-tokens/new** (fine-grained).
-2. **Repository access** → Only select repositories → `cdshot34/nfl-survivor`.
-3. **Permissions** → Repository permissions → **Contents** → **Read and write**.
-4. Generate, copy, paste it into the token box on `admin.html`, hit **Save token**.
+1. A **GitHub token** — https://github.com/settings/personal-access-tokens/new (fine-grained),
+   Repository access → Only select repositories → `cdshot34/nfl-survivor`,
+   Permissions → Repository permissions → **Contents** → **Read and write**.
+2. A **password** of your choosing (8+ characters).
 
-Scope it to this one repo and nothing else. The token is kept in that browser's `localStorage`
-and is sent only to `api.github.com` — it is never written into the repo. Untick "remember"
-on a shared machine, and use the **Forget token** button to clear it.
+The token is encrypted with the password (PBKDF2-SHA256, 250k iterations → AES-256-GCM) and only
+the ciphertext is kept, in that browser's `localStorage`. The password itself is never stored
+anywhere — a successful decrypt is what proves it was right.
 
-If a save ever fails, the **Manual fallback** section still has the Copy JSON / Download buttons
-and you can paste the file into GitHub by hand.
+After that, every visit shows a lock screen. Enter the password to reveal the form. It re-locks on
+reload, on the **Lock** button, and after 30 minutes idle.
+
+**There is no password reset.** Forget it and you clear the device and set up again with a new
+token. Nothing is lost — the picks live in the repo.
+
+#### What the password does and doesn't do
+
+- **Does:** stop anyone else using the pick form, and make the stored token unusable without it —
+  so someone at your unlocked laptop still cannot commit.
+- **Doesn't:** hide the picks. `data/picks.json` is in a public repo and readable by anyone.
+  The password guards *writing*, not *reading*.
+
+If a save ever fails, the **Manual fallback** section still has Copy JSON / Download and you can
+paste the file into GitHub by hand.
 
 ## Files
 
 ```
 index.html          the public board
-admin.html          pick entry — saves straight to GitHub
+admin.html          pick entry — password gated, saves straight to GitHub
 assets/nfl.js       ESPN fetching, pick grading, elimination logic
 assets/app.js       renders the board
 assets/style.css    styling

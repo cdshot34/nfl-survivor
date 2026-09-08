@@ -445,6 +445,47 @@ button {
 button.secondary { background: var(--panel-2); color: var(--ink); border: 1px solid var(--line); }
 button:hover { filter: brightness(1.1); }
 
+/* ---------- lock screen ---------- */
+
+.hero-actions { display: flex; gap: .5rem; align-items: center; }
+.hero-actions button.ghost-btn { cursor: pointer; }
+
+.gate {
+  max-width: 430px;
+  margin: 3rem auto;
+  padding: 2rem 1.8rem;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  text-align: center;
+}
+.gate[hidden] { display: none; }
+.gate-icon { font-size: 2.4rem; line-height: 1; margin-bottom: .5rem; }
+.gate h2 { margin: 0 0 .3rem; font-size: 1.4rem; }
+.gate-sub { color: var(--muted); font-size: .86rem; margin: 0 0 1.3rem; }
+
+.gate form { display: flex; flex-direction: column; gap: .6rem; text-align: left; }
+.gate form button { margin-top: .4rem; padding: .7rem; font-size: .95rem; }
+.gate .fl {
+  font-size: .68rem;
+  text-transform: uppercase;
+  letter-spacing: .09em;
+  color: var(--muted);
+  font-weight: 700;
+  margin-bottom: -.3rem;
+}
+
+.gate-err { min-height: 1.1rem; margin: .7rem 0 0; font-size: .82rem; color: var(--loss); }
+.gate-foot { font-size: .74rem; color: var(--muted); margin: 1.2rem 0 0; }
+.gate-foot a { color: var(--accent); }
+.gate .warn { text-align: left; margin-top: 1.1rem; }
+.gate .drop { margin-top: -.2rem; }
+.gate .drop > summary { padding: .55rem .8rem; font-size: .78rem; }
+.tok-help .steps { margin: 0; }
+
+button.danger { color: #ffb2b6; border-color: rgba(227, 75, 82, .45); }
+button.danger:hover { background: rgba(227, 75, 82, .14); }
+
 .save-bar { display: flex; align-items: center; gap: .9rem; flex-wrap: wrap; }
 .save-bar button { font-size: 1rem; padding: .75rem 1.6rem; }
 .save-bar button:disabled { opacity: .5; cursor: default; }

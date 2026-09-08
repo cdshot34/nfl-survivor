@@ -13,7 +13,10 @@
   <div class="wrap">
     <div class="hero-top">
       <h1>Enter picks</h1>
-      <a class="ghost-btn" href="index.html">Back to the board</a>
+      <div class="hero-actions">
+        <button id="lock-btn" class="ghost-btn" hidden>Lock</button>
+        <a class="ghost-btn" href="index.html">Back to the board</a>
+      </div>
     </div>
     <p class="tagline">Commissioner only. Set the picks, hit save, done.</p>
   </div>
@@ -23,83 +26,198 @@
 
   <div id="banner" class="banner err" hidden></div>
 
-  <section>
-    <div class="controls">
-      <label for="week-sel">Week</label>
-      <select id="week-sel"></select>
-      <span id="lock-note" class="dl-when"></span>
+  <!-- ============ locked ============ -->
+
+  <section class="gate" id="gate" hidden>
+
+    <div id="gate-unlock" hidden>
+      <div class="gate-icon">🔒</div>
+      <h2>Locked</h2>
+      <p class="gate-sub">Enter the commissioner password to make picks.</p>
+      <form id="unlock-form" autocomplete="off">
+        <input class="field" type="password" id="unlock-pw" placeholder="Password"
+               autocomplete="current-password">
+        <button type="submit">Unlock</button>
+      </form>
+      <p class="gate-err" id="unlock-err"></p>
+      <p class="gate-foot">
+        Forgot it? There's no reset — <a href="#" id="reset-link">clear this device</a> and set it up
+        again with a fresh GitHub token.
+      </p>
     </div>
 
-    <div class="admin-grid" id="entries"></div>
-    <div id="dupwarn"></div>
-  </section>
+    <div id="gate-setup" hidden>
+      <div class="gate-icon">🔑</div>
+      <h2>Set up this device</h2>
+      <p class="gate-sub">
+        Pick a password and paste a GitHub token. The token gets encrypted with the password and
+        stored in this browser only.
+      </p>
 
-  <section>
-    <div class="save-bar">
-      <button id="save-gh">Save picks</button>
-      <span class="save-status" id="save-status"></span>
+      <form id="setup-form" autocomplete="off">
+        <label class="fl" for="setup-token">GitHub token</label>
+        <input class="field" type="password" id="setup-token" placeholder="github_pat_..."
+               autocomplete="off" spellcheck="false">
+
+        <details class="drop tok-help">
+          <summary>How to make one</summary>
+          <div class="drop-body">
+            <ol class="steps">
+              <li>Open <a id="tok-link" href="https://github.com/settings/personal-access-tokens/new"
+                          target="_blank" rel="noopener">the fine-grained token page</a>.</li>
+              <li><b>Repository access</b> &rarr; Only select repositories &rarr;
+                  <code id="repo-label"></code>.</li>
+              <li><b>Permissions</b> &rarr; Repository permissions &rarr; <b>Contents</b>
+                  &rarr; <b>Read and write</b>.</li>
+              <li>Set an expiry past February, generate, copy it.</li>
+            </ol>
+          </div>
+        </details>
+
+        <label class="fl" for="setup-pw">Password</label>
+        <input class="field" type="password" id="setup-pw" placeholder="At least 8 characters"
+               autocomplete="new-password">
+
+        <label class="fl" for="setup-pw2">Confirm password</label>
+        <input class="field" type="password" id="setup-pw2" placeholder="Again"
+               autocomplete="new-password">
+
+        <button type="submit">Encrypt and unlock</button>
+      </form>
+      <p class="gate-err" id="setup-err"></p>
+      <div class="warn">
+        There is no password reset. If you forget it, clear the device and set up again with a new
+        token — nothing else is lost, since the picks live in the repo.
+      </div>
     </div>
-    <p class="save-hint" id="save-hint"></p>
+
   </section>
 
-  <section>
-    <details id="token-box" class="drop">
-      <summary>GitHub access token <span class="tok-state" id="tok-state"></span></summary>
-      <div class="drop-body">
-        <p class="steps-intro">
-          Saving commits straight to <code id="repo-label"></code>. That needs a token, once per device.
-        </p>
-        <ol class="steps">
-          <li>Open <a id="tok-link" href="#" target="_blank" rel="noopener">the fine-grained token page</a>.</li>
-          <li><b>Repository access</b> &rarr; Only select repositories &rarr; pick <code id="repo-label-2"></code>.</li>
-          <li><b>Permissions</b> &rarr; Repository permissions &rarr; <b>Contents</b> &rarr; <b>Read and write</b>.</li>
-          <li>Set an expiry you're happy with, generate it, copy the value.</li>
-          <li>Paste it below and save.</li>
-        </ol>
-        <input class="field" type="password" id="token" placeholder="github_pat_..." autocomplete="off" spellcheck="false">
-        <label class="check"><input type="checkbox" id="remember" checked> Remember on this device</label>
-        <div class="controls" style="margin-top:.7rem">
-          <button id="tok-save">Save token</button>
-          <button id="tok-clear" class="secondary">Forget token</button>
-        </div>
-        <div class="warn">
-          Scope it to this one repo and nothing else. It lives in this browser only &mdash; it is never
-          committed and never leaves your device except to call the GitHub API. On a shared computer,
-          untick "remember".
-        </div>
-      </div>
-    </details>
-  </section>
+  <!-- ============ unlocked ============ -->
 
-  <section>
-    <details class="drop">
-      <summary>Manual fallback &mdash; the raw JSON</summary>
-      <div class="drop-body">
-        <textarea class="out-json" id="out" spellcheck="false" readonly></textarea>
-        <div class="controls" style="margin-top:.7rem">
-          <button id="copy" class="secondary">Copy JSON</button>
-          <button id="download" class="secondary">Download file</button>
-          <span id="copied" class="dl-when"></span>
-        </div>
-        <p class="steps-intro">
-          Only needed if saving fails. Paste this over <code>data/picks.json</code> in the repo and commit.
-        </p>
+  <div id="app" hidden>
+
+    <section>
+      <div class="controls">
+        <label for="week-sel">Week</label>
+        <select id="week-sel"></select>
+        <span id="lock-note" class="dl-when"></span>
       </div>
-    </details>
-  </section>
+
+      <div class="admin-grid" id="entries"></div>
+      <div id="dupwarn"></div>
+    </section>
+
+    <section>
+      <div class="save-bar">
+        <button id="save-gh">Save picks</button>
+        <span class="save-status" id="save-status"></span>
+      </div>
+      <p class="save-hint" id="save-hint"></p>
+    </section>
+
+    <section>
+      <details class="drop">
+        <summary>Device settings</summary>
+        <div class="drop-body">
+          <p class="steps-intro">
+            The encrypted token is held in this browser only. It never goes into the repo and is
+            only ever sent to <code>api.github.com</code>.
+          </p>
+          <div class="controls">
+            <button id="rekey" class="secondary">Replace token / change password</button>
+            <button id="wipe" class="secondary danger">Clear this device</button>
+          </div>
+        </div>
+      </details>
+    </section>
+
+    <section>
+      <details class="drop">
+        <summary>Manual fallback &mdash; the raw JSON</summary>
+        <div class="drop-body">
+          <textarea class="out-json" id="out" spellcheck="false" readonly></textarea>
+          <div class="controls" style="margin-top:.7rem">
+            <button id="copy" class="secondary">Copy JSON</button>
+            <button id="download" class="secondary">Download file</button>
+            <span id="copied" class="dl-when"></span>
+          </div>
+          <p class="steps-intro">
+            Only needed if saving fails. Paste this over <code>data/picks.json</code> in the repo
+            and commit.
+          </p>
+        </div>
+      </details>
+    </section>
+
+  </div>
 
 </main>
 
 <footer class="wrap foot">
   <p>Teams a player already used are greyed out. Teams on bye aren't listed.</p>
+  <p>The board itself is public — this page is the only thing behind the password.</p>
 </footer>
 
 <script src="assets/nfl.js"></script>
 <script>
 (async function () {
   const $ = id => document.getElementById(id);
-  const TOKEN_KEY = 'survivor_gh_token';
-  let league, picks, curWeek, repo;
+  const VAULT_KEY = 'survivor_vault_v1';
+  const IDLE_MS = 30 * 60 * 1000;
+
+  let league, picks, curWeek, repo, isDead, memToken = '', idleTimer;
+
+  /* ================= crypto ================= */
+  /* The password is never stored. The GitHub token is sealed with AES-GCM under a
+     PBKDF2 key derived from it, so a successful decrypt IS the password check. */
+
+  const enc = new TextEncoder();
+  const dec = new TextDecoder();
+  const toB64 = buf => btoa(String.fromCharCode(...new Uint8Array(buf)));
+  const fromB64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+
+  async function deriveKey(password, salt) {
+    const base = await crypto.subtle.importKey(
+      'raw', enc.encode(password), 'PBKDF2', false, ['deriveKey']);
+    return crypto.subtle.deriveKey(
+      { name: 'PBKDF2', salt, iterations: 250000, hash: 'SHA-256' },
+      base, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+  }
+
+  async function seal(token, password) {
+    const salt = crypto.getRandomValues(new Uint8Array(16));
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const key = await deriveKey(password, salt);
+    const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, enc.encode(token));
+    return { v: 1, salt: toB64(salt), iv: toB64(iv), ct: toB64(ct) };
+  }
+
+  async function unseal(vault, password) {
+    const key = await deriveKey(password, fromB64(vault.salt));
+    const pt = await crypto.subtle.decrypt(
+      { name: 'AES-GCM', iv: fromB64(vault.iv) }, key, fromB64(vault.ct));
+    return dec.decode(pt);
+  }
+
+  const readVault = () => {
+    try { return JSON.parse(localStorage.getItem(VAULT_KEY) || 'null'); }
+    catch (e) { return null; }
+  };
+  const writeVault = v => {
+    try { localStorage.setItem(VAULT_KEY, JSON.stringify(v)); return true; }
+    catch (e) { return false; }
+  };
+  const clearVault = () => { try { localStorage.removeItem(VAULT_KEY); } catch (e) {} };
+
+  /* ================= boot ================= */
+
+  if (!window.crypto || !crypto.subtle) {
+    $('banner').hidden = false;
+    $('banner').textContent =
+      'This browser will not do encryption on an insecure connection. Open the site over https.';
+    return;
+  }
 
   try {
     ({ league, picks } = await Survivor.loadConfig());
@@ -113,147 +231,137 @@
   repo = league.repo || {};
   const slug = `${repo.owner}/${repo.name}`;
   $('repo-label').textContent = slug;
-  $('repo-label-2').textContent = slug;
-  $('tok-link').href = 'https://github.com/settings/personal-access-tokens/new';
 
-  /* ---------- token handling ---------- */
-
-  function paintTokenState() {
-    const has = !!token();
-    $('tok-state').textContent = has ? 'saved' : 'not set';
-    $('tok-state').className = 'tok-state ' + (has ? 'ok' : 'missing');
-    $('save-hint').textContent = has
-      ? `Commits to ${slug} · the live board updates about a minute later.`
-      : 'Add a token below and saving will commit for you.';
-    if (!has) $('token-box').open = true;
-  }
-
-  $('tok-save').addEventListener('click', () => {
-    const v = $('token').value.trim();
-    if (!v) return setStatus('Paste a token first.', 'err');
-    try {
-      if ($('remember').checked) localStorage.setItem(TOKEN_KEY, v);
-      else sessionStorage.setItem(TOKEN_KEY, v);
-    } catch (e) { /* private mode — keep it in memory only */ }
-    memToken = v;
-    $('token').value = '';
-    $('token-box').open = false;
-    paintTokenState();
-    setStatus('Token saved on this device.', 'ok');
-  });
-
-  $('tok-clear').addEventListener('click', () => {
-    try { localStorage.removeItem(TOKEN_KEY); sessionStorage.removeItem(TOKEN_KEY); } catch (e) {}
-    memToken = '';
-    paintTokenState();
-    setStatus('Token forgotten.', '');
-  });
-
-  let memToken = '';
-  const token = () => {
-    if (memToken) return memToken;
-    try { return localStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(TOKEN_KEY) || ''; }
-    catch (e) { return ''; }
-  };
-  paintTokenState();
-
-  /* ---------- saving ---------- */
-
-  function setStatus(msg, kind) {
-    const el = $('save-status');
-    el.className = 'save-status ' + (kind || '');
-    el.innerHTML = msg;
-  }
-
-  function b64(str) {
-    const bytes = new TextEncoder().encode(str);
-    let bin = '';
-    bytes.forEach(b => { bin += String.fromCharCode(b); });
-    return btoa(bin);
-  }
-
-  const ghHeaders = t => ({
-    'Authorization': 'Bearer ' + t,
-    'Accept': 'application/vnd.github+json',
-    'X-GitHub-Api-Version': '2022-11-28'
-  });
-
-  async function currentSha(t) {
-    const url = `https://api.github.com/repos/${repo.owner}/${repo.name}/contents/` +
-                `${repo.picksPath}?ref=${repo.branch}`;
-    const res = await fetch(url, { headers: ghHeaders(t), cache: 'no-store' });
-    if (res.status === 404) return null;          // file doesn't exist yet — fine, we create it
-    if (!res.ok) throw await ghError(res);
-    return (await res.json()).sha;
-  }
-
-  async function ghError(res) {
-    let detail = '';
-    try { detail = (await res.json()).message || ''; } catch (e) {}
-    const map = {
-      401: 'Token rejected — it may be expired or mistyped.',
-      403: 'Token lacks permission. It needs Contents: Read and write on this repo.',
-      404: `Cannot see ${slug}. Check the token has this repository selected.`,
-      409: 'Someone else changed the file. Reload and re-enter this week.',
-      422: 'GitHub refused the commit.'
-    };
-    return new Error((map[res.status] || `GitHub returned ${res.status}.`) +
-                     (detail ? ` (${detail})` : ''));
-  }
-
-  $('save-gh').addEventListener('click', async () => {
-    const t = token();
-    if (!t) {
-      $('token-box').open = true;
-      return setStatus('No token saved yet — add one below.', 'err');
-    }
-    const week = Number($('week-sel').value);
-    $('save-gh').disabled = true;
-    setStatus('Saving…', '');
-
-    try {
-      const sha = await currentSha(t);
-      const url = `https://api.github.com/repos/${repo.owner}/${repo.name}/contents/${repo.picksPath}`;
-      const body = {
-        message: `Week ${week} picks`,
-        content: b64($('out').value),
-        branch: repo.branch
-      };
-      if (sha) body.sha = sha;
-
-      const res = await fetch(url, { method: 'PUT', headers: ghHeaders(t), body: JSON.stringify(body) });
-      if (!res.ok) throw await ghError(res);
-
-      const out = await res.json();
-      const short = out.commit.sha.slice(0, 7);
-      setStatus(`Saved as <a href="${out.commit.html_url}" target="_blank" rel="noopener">${short}</a>. ` +
-                `Board updates in about a minute.`, 'ok');
-    } catch (err) {
-      setStatus(err.message, 'err');
-    } finally {
-      $('save-gh').disabled = false;
-    }
-  });
-
-  /* ---------- week + pick entry ---------- */
-
-  // Who is already out, based only on weeks that have picks and are behind us.
+  // Who is already out, from the weeks behind us that have picks.
   const played = {};
-  const pickedWeeks = Object.keys(picks).map(Number).filter(w => w < curWeek).sort((a, b) => a - b);
-  for (const w of pickedWeeks) played[w] = await Survivor.loadWeek(league, w);
+  for (const w of Object.keys(picks).map(Number).filter(w => w < curWeek).sort((a, b) => a - b)) {
+    played[w] = await Survivor.loadWeek(league, w);
+  }
   const table = Survivor.standings(league, picks, played);
-  const isDead = id => {
+  isDead = id => {
     const row = table.rows.find(r => r.player.id === id);
     return row ? !row.alive : false;
   };
 
-  const sel = $('week-sel');
-  for (let w = league.firstWeek; w <= league.lastWeek; w++) {
-    sel.insertAdjacentHTML('beforeend',
-      `<option value="${w}" ${w === curWeek ? 'selected' : ''}>Week ${w}</option>`);
+  showGate();
+
+  /* ================= gate ================= */
+
+  function showGate(forceSetup) {
+    memToken = '';
+    clearTimeout(idleTimer);
+    $('app').hidden = true;
+    $('lock-btn').hidden = true;
+    $('gate').hidden = false;
+
+    const needsSetup = forceSetup || !readVault();
+    $('gate-setup').hidden = !needsSetup;
+    $('gate-unlock').hidden = needsSetup;
+    $('unlock-err').textContent = '';
+    $('setup-err').textContent = '';
+    ['unlock-pw', 'setup-pw', 'setup-pw2', 'setup-token'].forEach(id => { $(id).value = ''; });
+    setTimeout(() => $(needsSetup ? 'setup-token' : 'unlock-pw').focus(), 50);
   }
-  sel.addEventListener('change', () => loadWeekUI(Number(sel.value)));
-  await loadWeekUI(curWeek);
+
+  $('unlock-form').addEventListener('submit', async e => {
+    e.preventDefault();
+    const pw = $('unlock-pw').value;
+    if (!pw) return;
+    const btn = $('unlock-form').querySelector('button');
+    btn.disabled = true;
+    $('unlock-err').textContent = 'Checking…';
+    try {
+      memToken = await unseal(readVault(), pw);
+      $('unlock-err').textContent = '';
+      unlock();
+    } catch (err) {
+      $('unlock-err').textContent = 'Wrong password.';
+      $('unlock-pw').value = '';
+      $('unlock-pw').focus();
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  $('setup-form').addEventListener('submit', async e => {
+    e.preventDefault();
+    const tok = $('setup-token').value.trim();
+    const pw = $('setup-pw').value;
+    const pw2 = $('setup-pw2').value;
+    const err = m => { $('setup-err').textContent = m; };
+
+    if (!tok) return err('Paste a GitHub token.');
+    if (pw.length < 8) return err('Password needs at least 8 characters.');
+    if (pw !== pw2) return err('The two passwords do not match.');
+
+    const btn = $('setup-form').querySelector('button');
+    btn.disabled = true;
+    err('Encrypting…');
+    try {
+      const vault = await seal(tok, pw);
+      if (!writeVault(vault)) {
+        return err('This browser refused to store it. Private browsing?');
+      }
+      memToken = tok;
+      err('');
+      unlock();
+    } catch (e2) {
+      err('Could not encrypt: ' + e2.message);
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  $('reset-link').addEventListener('click', e => {
+    e.preventDefault();
+    if (confirm('Clear the saved token and password from this device?')) {
+      clearVault();
+      showGate(true);
+    }
+  });
+
+  $('lock-btn').addEventListener('click', () => showGate());
+  $('rekey').addEventListener('click', () => showGate(true));
+  $('wipe').addEventListener('click', () => {
+    if (confirm('Clear the saved token and password from this device?')) {
+      clearVault();
+      showGate(true);
+    }
+  });
+
+  /* Auto-lock after a spell of inactivity. */
+  function armIdle() {
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(() => {
+      if (!$('app').hidden) showGate();
+    }, IDLE_MS);
+  }
+  ['click', 'keydown', 'change'].forEach(ev =>
+    document.addEventListener(ev, () => { if (!$('app').hidden) armIdle(); }));
+
+  /* ================= unlocked app ================= */
+
+  let booted = false;
+
+  async function unlock() {
+    $('gate').hidden = true;
+    $('app').hidden = false;
+    $('lock-btn').hidden = false;
+    $('save-hint').textContent =
+      `Commits to ${slug} · the live board updates about a minute later.`;
+    armIdle();
+
+    if (booted) return;
+    booted = true;
+
+    const sel = $('week-sel');
+    for (let w = league.firstWeek; w <= league.lastWeek; w++) {
+      sel.insertAdjacentHTML('beforeend',
+        `<option value="${w}" ${w === curWeek ? 'selected' : ''}>Week ${w}</option>`);
+    }
+    sel.addEventListener('change', () => loadWeekUI(Number(sel.value)));
+    await loadWeekUI(curWeek);
+  }
 
   async function loadWeekUI(week) {
     $('entries').innerHTML = '<p class="tagline">Loading schedule…</p>';
@@ -298,7 +406,7 @@
 
     $('entries').querySelectorAll('select').forEach(s =>
       s.addEventListener('change', () => {
-        const w = Number(sel.value);
+        const w = Number($('week-sel').value);
         picks[w] = picks[w] || {};
         league.players.forEach(p => { if (!(p.id in picks[w])) picks[w][p.id] = ''; });
         picks[w][s.dataset.player] = s.value;
@@ -310,7 +418,7 @@
   }
 
   function render() {
-    const week = Number(sel.value);
+    const week = Number($('week-sel').value);
     picks[week] = picks[week] || {};
     league.players.forEach(p => { if (!(p.id in picks[week])) picks[week][p.id] = ''; });
 
@@ -330,7 +438,77 @@
     $('out').value = JSON.stringify(ordered, null, 2) + '\n';
   }
 
-  /* ---------- manual fallback ---------- */
+  /* ================= saving ================= */
+
+  function setStatus(msg, kind) {
+    const el = $('save-status');
+    el.className = 'save-status ' + (kind || '');
+    el.innerHTML = msg;
+  }
+
+  function b64(str) {
+    let bin = '';
+    enc.encode(str).forEach(b => { bin += String.fromCharCode(b); });
+    return btoa(bin);
+  }
+
+  const ghHeaders = t => ({
+    'Authorization': 'Bearer ' + t,
+    'Accept': 'application/vnd.github+json',
+    'X-GitHub-Api-Version': '2022-11-28'
+  });
+
+  async function ghError(res) {
+    let detail = '';
+    try { detail = (await res.json()).message || ''; } catch (e) {}
+    const map = {
+      401: 'Token rejected — it may be expired or mistyped.',
+      403: 'Token lacks permission. It needs Contents: Read and write on this repo.',
+      404: `Cannot see ${slug}. Check the token has this repository selected.`,
+      409: 'Someone else changed the file. Reload and re-enter this week.',
+      422: 'GitHub refused the commit.'
+    };
+    return new Error((map[res.status] || `GitHub returned ${res.status}.`) +
+                     (detail ? ` (${detail})` : ''));
+  }
+
+  async function currentSha(t) {
+    const url = `https://api.github.com/repos/${repo.owner}/${repo.name}/contents/` +
+                `${repo.picksPath}?ref=${repo.branch}`;
+    const res = await fetch(url, { headers: ghHeaders(t), cache: 'no-store' });
+    if (res.status === 404) return null;
+    if (!res.ok) throw await ghError(res);
+    return (await res.json()).sha;
+  }
+
+  $('save-gh').addEventListener('click', async () => {
+    if (!memToken) return showGate();
+    const week = Number($('week-sel').value);
+    $('save-gh').disabled = true;
+    setStatus('Saving…', '');
+
+    try {
+      const sha = await currentSha(memToken);
+      const url = `https://api.github.com/repos/${repo.owner}/${repo.name}/contents/${repo.picksPath}`;
+      const body = { message: `Week ${week} picks`, content: b64($('out').value), branch: repo.branch };
+      if (sha) body.sha = sha;
+
+      const res = await fetch(url, {
+        method: 'PUT', headers: ghHeaders(memToken), body: JSON.stringify(body)
+      });
+      if (!res.ok) throw await ghError(res);
+
+      const out = await res.json();
+      setStatus(`Saved as <a href="${out.commit.html_url}" target="_blank" rel="noopener">` +
+                `${out.commit.sha.slice(0, 7)}</a>. Board updates in about a minute.`, 'ok');
+    } catch (err) {
+      setStatus(err.message, 'err');
+    } finally {
+      $('save-gh').disabled = false;
+    }
+  });
+
+  /* ================= manual fallback ================= */
 
   $('copy').addEventListener('click', async () => {
     await navigator.clipboard.writeText($('out').value);
