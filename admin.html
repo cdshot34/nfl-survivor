@@ -166,7 +166,7 @@
   const VAULT_KEY = 'survivor_vault_v1';
   const IDLE_MS = 30 * 60 * 1000;
 
-  let league, picks, curWeek, repo, isDead, memToken = '', idleTimer;
+  let league, picks, curWeek, repo, memToken = '', idleTimer;
 
   /* ================= crypto ================= */
   /* The password is never stored. The GitHub token is sealed with AES-GCM under a
@@ -232,18 +232,26 @@
   const slug = `${repo.owner}/${repo.name}`;
   $('repo-label').textContent = slug;
 
-  // Who is already out, from the weeks behind us that have picks.
-  const played = {};
-  for (const w of Object.keys(picks).map(Number).filter(w => w < curWeek).sort((a, b) => a - b)) {
-    played[w] = await Survivor.loadWeek(league, w);
+  // Open on the first week that is still taking picks, not one that has already locked.
+  let startWeek = curWeek;
+  while (startWeek < league.lastWeek) {
+    const wd = await Survivor.loadWeek(league, startWeek);
+    if (!wd.lockAt || new Date() < wd.lockAt) break;
+    startWeek++;
   }
-  const table = Survivor.standings(league, picks, played);
-  isDead = id => {
-    const row = table.rows.find(r => r.player.id === id);
-    return row ? !row.alive : false;
-  };
 
   showGate();
+
+  /* Standing of every player going into `week`: grades the weeks before it that have picks,
+     and applies any restart up to and including it. */
+  async function statusGoingInto(week) {
+    const played = {};
+    for (const w of Object.keys(picks).map(Number).filter(w => w < week)) {
+      played[w] = await Survivor.loadWeek(league, w);
+    }
+    const t = Survivor.standings(league, picks, played, { throughWeek: week });
+    return id => t.rows.find(r => r.player.id === id);
+  }
 
   /* ================= gate ================= */
 
@@ -357,15 +365,16 @@
     const sel = $('week-sel');
     for (let w = league.firstWeek; w <= league.lastWeek; w++) {
       sel.insertAdjacentHTML('beforeend',
-        `<option value="${w}" ${w === curWeek ? 'selected' : ''}>Week ${w}</option>`);
+        `<option value="${w}" ${w === startWeek ? 'selected' : ''}>Week ${w}</option>`);
     }
     sel.addEventListener('change', () => loadWeekUI(Number(sel.value)));
-    await loadWeekUI(curWeek);
+    await loadWeekUI(startWeek);
   }
 
   async function loadWeekUI(week) {
     $('entries').innerHTML = '<p class="tagline">Loading schedule…</p>';
     const wd = await Survivor.loadWeek(league, week);
+    const rowFor = await statusGoingInto(week);
 
     $('lock-note').textContent = wd.lockAt
       ? `Locks ${fmtDateTime(wd.lockAt)} · first kickoff ${fmtDateTime(wd.firstKickoff)}` +
@@ -381,7 +390,9 @@
 
     $('entries').innerHTML = '';
     for (const p of league.players) {
-      const dead = isDead(p.id);
+      const row = rowFor(p.id);
+      const dead = row ? !row.alive : false;
+      const rev = row && row.revivals.find(v => v.week === week);
       const used = Survivor.usedTeams(league, picks, p.id, week);
       const current = (picks[week] || {})[p.id] || '';
       const el = document.createElement('div');
@@ -399,7 +410,8 @@
       el.innerHTML =
         `<h3>${p.name}</h3>` +
         `<div class="sub">${dead ? 'Eliminated — pick ignored'
-                                 : `${32 - new Set(used).size} teams still available`}</div>` +
+          : (rev ? `Back in after Week ${rev.outWeek} · ${used.join(', ')} stays burned · ` : '') +
+            `${32 - new Set(used).size} teams still available`}</div>` +
         `<select data-player="${p.id}" ${dead ? 'disabled' : ''}>${options}</select>`;
       $('entries').appendChild(el);
     }

@@ -105,19 +105,39 @@ const Survivor = (() => {
   }
 
   /* Walk the season week by week and work out who is still alive. */
-  function standings(league, picks, weeks) {
+  /* opts.throughWeek: ignore restarts after this week (the admin page asks
+     "who is alive going into week N"). The board passes nothing. */
+  function standings(league, picks, weeks, opts = {}) {
     const state = {};
     league.players.forEach(p => {
       state[p.id] = {
         player: p, alive: true, outWeek: null, outReason: null,
-        used: [], byWeek: {}, wins: 0
+        used: [], byWeek: {}, wins: 0, revivals: []
       };
     });
 
     const weekNums = Object.keys(weeks).map(Number).sort((a, b) => a - b);
+    const restarts = (league.restarts || [])
+      .filter(r => opts.throughWeek == null || r.week <= opts.throughWeek);
+    const restartApplied = [];
+    const timeline = [...new Set([...weekNums, ...restarts.map(r => r.week)])].sort((a, b) => a - b);
 
-    for (const wk of weekNums) {
+    for (const wk of timeline) {
+      // A restart only fires after a wipeout: nobody alive, and it brings back exactly the
+      // players who went down together last. Used teams carry over.
+      const restart = restarts.find(r => r.week === wk);
+      if (restart && !league.players.some(p => state[p.id].alive)) {
+        const lastOut = Math.max(0, ...league.players.map(p => state[p.id].outWeek || 0));
+        const back = league.players.map(p => state[p.id]).filter(s => s.outWeek === lastOut);
+        back.forEach(s => {
+          s.revivals.push({ outWeek: s.outWeek, outReason: s.outReason, week: wk });
+          s.alive = true; s.outWeek = null; s.outReason = null;
+        });
+        if (back.length) restartApplied.push({ ...restart, players: back, outWeek: lastOut });
+      }
+
       const wd = weeks[wk];
+      if (!wd) continue;
       for (const p of league.players) {
         const s = state[p.id];
         const team = (picks[wk] || {})[p.id] || '';
@@ -162,7 +182,7 @@ const Survivor = (() => {
       outcome = { kind: 'split-season', players: alive };
     }
 
-    return { rows, alive, outcome };
+    return { rows, alive, outcome, restarts: restartApplied };
   }
 
   function usedTeams(league, picks, playerId, throughWeek) {

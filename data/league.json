@@ -38,5 +38,11 @@
     "name": "nfl-survivor",
     "branch": "main",
     "picksPath": "data/picks.json"
-  }
+  },
+  "restarts": [
+    {
+      "week": 2,
+      "note": "Week 1 teams stay burned. Nobody can take their original pick again."
+    }
+  ]
 }

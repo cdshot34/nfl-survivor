@@ -178,6 +178,7 @@ h1 {
   text-transform: uppercase;
   color: var(--loss);
 }
+.surv-chip .wk.back { color: var(--accent); }
 
 /* ---------- banner ---------- */
 
@@ -195,6 +196,7 @@ h1 {
 .banner.champ { border-color: #6b5a1f; background: linear-gradient(135deg, #2a2311, var(--panel)); }
 .banner.split { border-color: #2b4a63; background: linear-gradient(135deg, #12283a, var(--panel)); }
 .banner.err   { border-color: #6b2a2e; background: #2a1417; color: #ffc9cc; }
+.banner.restart { border-color: #2b4a63; background: linear-gradient(135deg, #12283a, var(--panel)); }
 .b-emoji { font-size: 2rem; }
 .b-sub { color: var(--muted); font-size: .88rem; }
 
@@ -271,7 +273,7 @@ section { margin: 2.2rem 0; }
 .pill.live { background: rgba(245, 165, 36, .18); color: var(--live); }
 .pill.bye { background: rgba(227, 75, 82, .18); color: var(--loss); }
 
-.pcard-nopick, .pcard-out {
+.pcard-nopick, .pcard-out, .pcard-back {
   background: var(--panel-2);
   border-radius: 10px;
   padding: .7rem;
@@ -281,6 +283,7 @@ section { margin: 2.2rem 0; }
 }
 .pcard-nopick { border-left-color: var(--live); }
 .pcard-out { border-left-color: var(--loss); }
+.pcard-back { border-left-color: var(--accent); }
 
 .pcard footer {
   display: flex;
@@ -326,6 +329,7 @@ section { margin: 2.2rem 0; }
 }
 tr.dead .pname-cell { color: var(--muted); border-left-color: var(--loss) !important; }
 .skull { font-size: .8rem; }
+.revived { color: var(--accent); font-weight: 700; }
 
 .cell { min-width: 42px; height: 42px; padding: 0; }
 .cell img { display: block; margin: auto; }

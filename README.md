@@ -17,11 +17,34 @@ ESPN scoreboard. Free to host on GitHub Pages.
 | No team twice | Used teams are removed from the dropdown and flagged on the board |
 | Deadline | 24 hours before the week's **first** kickoff — shown as a live countdown |
 | Missed pick | Counts as an elimination once that week's games are final |
-| Everyone dies same week | Those players split the pot |
+| Everyone dies same week | Those players split the pot — unless a restart is declared (below) |
 | Survivor count | Live `N of 4 still alive` strip at the top of the board |
 | Pick entry | Password protected; the GitHub token is encrypted at rest in the browser |
 
 All of these live in `data/league.json` under `rules` if you want to change one.
+
+### Restarts
+
+If everyone left goes down in the same week, you can bring them all back instead of splitting.
+Add an entry to `restarts` in `data/league.json`:
+
+```json
+"restarts": [
+  { "week": 2, "note": "Week 1 teams stay burned. Nobody can take their original pick again." }
+]
+```
+
+From that week on, the players who went out together are alive again. What carries over:
+
+- **Used teams stay burned.** Their earlier picks are still greyed out in the entry dropdowns and
+  would be flagged as a reuse on the board.
+- **The history stays.** The losing week stays red on the season board, and revived players get
+  a ↺ marker.
+- **It only fires after a real wipeout.** If anyone is still alive when the restart week comes
+  round, the entry does nothing.
+
+The 2026 season already has one: all four went out in Week 1 (ARI beat LAC, NYG beat DAL), so
+everyone is back in from Week 2.
 
 > Week 1 of 2026 opens **Wed Sept 9, 8:20 PM ET** (NE @ SEA), so the Week 1 deadline is
 > **Tue Sept 8, 8:20 PM ET**. The site computes this automatically each week — Thursday-opener

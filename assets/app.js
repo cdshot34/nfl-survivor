@@ -29,14 +29,26 @@
     return fail('Could not reach the ESPN scoreboard. Results will appear once it is back.');
   }
 
-  // If the current week is already in the books, point the page at the next one.
+  // Point the page at the next week once this one is done for the pool: every game final,
+  // or the deadline passed and no pick still standing is in an unfinished game. That second
+  // case stops a Monday night game nobody picked from holding the board on last week.
+  table = Survivor.standings(league, picks, weeks);
   focus = week;
-  while (weeks[focus] && weeks[focus].allFinal && focus < league.lastWeek) {
+  while (focus < league.lastWeek && weeks[focus] && weekSettled(focus)) {
     focus++;
     if (!weeks[focus]) weeks[focus] = await Survivor.loadWeek(league, focus);
+    table = Survivor.standings(league, picks, weeks);
   }
 
-  table = Survivor.standings(league, picks, weeks);
+  function weekSettled(w) {
+    const wd = weeks[w];
+    if (wd.allFinal) return true;
+    if (!wd.lockAt || new Date() < wd.lockAt) return false;
+    return table.rows.every(r => {
+      const c = r.byWeek[w];
+      return !c || (c.status !== 'pending' && c.status !== 'live');
+    });
+  }
 
   renderDeadline(weeks[focus]);
   renderSurvivors();
@@ -92,7 +104,9 @@
     $('surv-chips').innerHTML = table.rows.map(r =>
       `<span class="surv-chip ${r.alive ? 'in' : 'out'}" style="--accent:${r.player.color}">` +
         `<span class="dot"></span>${r.player.name}` +
-        (r.alive ? '' : `<span class="wk">wk ${r.outWeek}</span>`) +
+        (r.alive
+          ? (r.revivals.length ? `<span class="wk back">↺ wk ${lastRevival(r).week}</span>` : '')
+          : `<span class="wk">wk ${r.outWeek}</span>`) +
       `</span>`).join('');
   }
 
@@ -100,9 +114,22 @@
 
   function renderBanner() {
     const o = table.outcome;
-    if (!o) return;
-    const names = o.players.map(r => r.player.name).join(' & ');
     const b = $('banner');
+
+    if (!o) {
+      const rs = table.restarts[table.restarts.length - 1];
+      if (!rs) return;
+      const who = rs.players.length === table.rows.length
+        ? 'Everyone' : rs.players.map(r => r.player.name).join(' & ');
+      b.hidden = false;
+      b.className = 'banner restart';
+      b.innerHTML = `<span class="b-emoji">🔄</span><div><b>${who}</b> went down in Week ${rs.outWeek} ` +
+        `&mdash; back in from <b>Week ${rs.week}</b>.` +
+        `<br><span class="b-sub">${rs.note || 'Teams already used stay burned.'}</span></div>`;
+      return;
+    }
+
+    const names = o.players.map(r => r.player.name).join(' & ');
     b.hidden = false;
     if (o.kind === 'winner') {
       b.className = 'banner champ';
@@ -134,9 +161,13 @@
       el.className = 'pcard' + (r.alive ? '' : ' dead');
       el.style.setProperty('--accent', r.player.color);
 
+      const rev = lastRevival(r);
       let pickHTML;
       if (!r.alive) {
         pickHTML = `<div class="pcard-out">Eliminated in Week ${r.outWeek} — ${reasonText(r.outReason)}</div>`;
+      } else if (rev && rev.week > focusWeek) {
+        pickHTML = `<div class="pcard-back">Out in Week ${rev.outWeek} (${reasonText(rev.outReason)}) ` +
+          `— back in from Week ${rev.week}</div>`;
       } else if (cell.team) {
         const g = cell.game;
         pickHTML =
@@ -179,7 +210,11 @@
 
     for (const r of table.rows) {
       html += `<tr class="${r.alive ? '' : 'dead'}" style="--accent:${r.player.color}">` +
-        `<th class="pname-cell">${r.player.name}${r.alive ? '' : ' <span class="skull">💀</span>'}</th>`;
+        `<th class="pname-cell">${r.player.name}` +
+        (r.alive
+          ? (r.revivals.length ? ` <span class="revived" title="Back in from Week ${lastRevival(r).week}">↺</span>` : '')
+          : ' <span class="skull">💀</span>') +
+        `</th>`;
 
       for (const w of wks) {
         const now = w === focus ? 'now' : '';
@@ -231,6 +266,10 @@
   }
 
   /* ---------- helpers ---------- */
+
+  function lastRevival(r) {
+    return r.revivals.length ? r.revivals[r.revivals.length - 1] : null;
+  }
 
   function statusText(s, tie) {
     return {
