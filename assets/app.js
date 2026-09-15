@@ -3,10 +3,10 @@
 (async function () {
   const $ = id => document.getElementById(id);
 
-  let league, picks, week, weeks = {}, table, focus;
+  let league, picks, sealed, week, weeks = {}, table, focus;
 
   try {
-    ({ league, picks } = await Survivor.loadConfig());
+    ({ league, picks, sealed } = await Survivor.loadConfig());
   } catch (e) {
     return fail('Could not load league data. Check that data/league.json and data/picks.json exist.');
   }
@@ -18,7 +18,7 @@
   try {
     week = await Survivor.currentWeek(league);
     const needed = new Set([week]);
-    Object.keys(picks).map(Number).forEach(w => {
+    [...Object.keys(picks), ...Object.keys(sealed.weeks)].map(Number).forEach(w => {
       if (w >= league.firstWeek && w <= league.lastWeek) needed.add(w);
     });
     const loaded = await Promise.all(
@@ -42,6 +42,7 @@
 
   function weekSettled(w) {
     const wd = weeks[w];
+    if (sealed.weeks[w]) return false;          // picks not revealed yet — nothing to grade
     if (wd.allFinal) return true;
     if (!wd.lockAt || new Date() < wd.lockAt) return false;
     return table.rows.every(r => {
@@ -64,6 +65,13 @@
     if (!wd || !wd.lockAt) return;
     $('deadline-bar').hidden = false;
     $('dl-week-num').textContent = `Week ${wd.week}`;
+    const sw = sealed.weeks[wd.week];
+    if (sw) {
+      const aliveIn = table.rows.filter(r => r.byWeek[wd.week] && r.byWeek[wd.week].status !== 'dead');
+      $('dl-picks').hidden = false;
+      $('dl-picks').textContent =
+        `${aliveIn.filter(r => sw.submitted.includes(r.player.id)).length} of ${aliveIn.length} picks in · hidden`;
+    }
     $('dl-when').textContent =
       `Deadline ${fmtDateTime(wd.lockAt)} · first kickoff ${fmtDateTime(wd.firstKickoff)}`;
 
@@ -165,6 +173,13 @@
       let pickHTML;
       if (!r.alive) {
         pickHTML = `<div class="pcard-out">Eliminated in Week ${r.outWeek} — ${reasonText(r.outReason)}</div>`;
+      } else if (sealed.weeks[focusWeek] && !(rev && rev.week > focusWeek)) {
+        const s = sealed.weeks[focusWeek];
+        const locked = new Date() >= new Date(s.lockAt);
+        pickHTML = s.submitted.includes(r.player.id)
+          ? `<div class="pcard-hidden"><span class="lock">🔒</span><div class="pp-text"><b>Pick is in</b>` +
+            `<span>${locked ? 'Deadline passed — revealing shortly' : 'Hidden until the deadline'}</span></div></div>`
+          : `<div class="pcard-nopick">No pick in yet for Week ${focusWeek}</div>`;
       } else if (rev && rev.week > focusWeek) {
         pickHTML = `<div class="pcard-back">Out in Week ${rev.outWeek} (${reasonText(rev.outReason)}) ` +
           `— back in from Week ${rev.week}</div>`;
@@ -219,7 +234,12 @@
       for (const w of wks) {
         const now = w === focus ? 'now' : '';
         const c = r.byWeek[w];
-        if (!c || c.status === 'dead' || (!c.team && !weeks[w])) {
+        const sw = sealed.weeks[w];
+        if (sw && c && c.status !== 'dead') {
+          html += sw.submitted.includes(r.player.id)
+            ? `<td class="cell hidden ${now}" title="Week ${w}: pick is in, hidden until the deadline">🔒</td>`
+            : `<td class="cell none ${now}" title="No pick in yet">–</td>`;
+        } else if (!c || c.status === 'dead' || (!c.team && !weeks[w])) {
           html += `<td class="cell empty ${now}"></td>`;
         } else if (!c.team) {
           html += `<td class="cell none ${now}" title="No pick entered">–</td>`;

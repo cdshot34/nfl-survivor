@@ -285,6 +285,28 @@ section { margin: 2.2rem 0; }
 .pcard-out { border-left-color: var(--loss); }
 .pcard-back { border-left-color: var(--accent); }
 
+.pcard-hidden {
+  display: flex;
+  align-items: center;
+  gap: .65rem;
+  background: var(--panel-2);
+  border-radius: 10px;
+  padding: .6rem .7rem;
+  border-left: 3px solid var(--accent);
+}
+.pcard-hidden .lock { font-size: 1.5rem; line-height: 1; width: 40px; text-align: center; }
+
+.cell.hidden { background: rgba(74, 90, 117, .22); font-size: .95rem; }
+
+.dl-picks {
+  display: block;
+  font-size: .8rem;
+  font-weight: 700;
+  color: var(--ink);
+  margin-top: .2rem;
+}
+.dl-picks[hidden] { display: none; }
+
 .pcard footer {
   display: flex;
   justify-content: space-between;
@@ -569,4 +591,31 @@ button.danger:hover { background: rgba(227, 75, 82, .14); }
 @media (max-width: 640px) {
   .dl-count { text-align: left; }
   .deadline-bar { flex-direction: column; align-items: flex-start; }
+}
+
+/* ---------- hidden picks (admin) ---------- */
+
+.reveal-bar {
+  display: flex;
+  align-items: center;
+  gap: .8rem;
+  flex-wrap: wrap;
+  margin-top: .8rem;
+  padding: .7rem .9rem;
+  border-radius: 10px;
+  background: rgba(78, 168, 255, .1);
+  border: 1px solid rgba(78, 168, 255, .35);
+  font-size: .84rem;
+}
+.reveal-bar[hidden], #stuck[hidden] { display: none; }
+
+.rk { margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px solid var(--line); }
+.rk-value {
+  display: inline-block;
+  max-width: 100%;
+  overflow-x: auto;
+  white-space: nowrap;
+  padding: .5rem .65rem;
+  font-size: .8rem;
+  letter-spacing: .02em;
 }

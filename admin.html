@@ -51,7 +51,8 @@
       <h2>Set up this device</h2>
       <p class="gate-sub">
         Pick a password and paste a GitHub token. The token gets encrypted with the password and
-        stored in this browser only.
+        stored in this browser only. <b>Use the same password on every device</b> &mdash; it is also
+        what keeps picks hidden until the deadline.
       </p>
 
       <form id="setup-form" autocomplete="off">
@@ -114,6 +115,11 @@
         <span class="save-status" id="save-status"></span>
       </div>
       <p class="save-hint" id="save-hint"></p>
+      <div class="reveal-bar" id="reveal-bar" hidden>
+        <span id="reveal-text"></span>
+        <button id="reveal-now" class="secondary">Reveal now</button>
+      </div>
+      <div class="warn" id="stuck" hidden></div>
     </section>
 
     <section>
@@ -124,6 +130,20 @@
             The encrypted token is held in this browser only. It never goes into the repo and is
             only ever sent to <code>api.github.com</code>.
           </p>
+          <div class="rk">
+            <p class="steps-intro">
+              <b>Reveal key.</b> Picks entered before a deadline are hidden on the board. A GitHub
+              Action unhides them once the deadline passes, and it needs this key. Add it once as a
+              repository secret named <code>REVEAL_KEY</code>:
+              <a id="rk-link" href="#" target="_blank" rel="noopener">new repository secret</a>.
+              The key comes from your password, so it only changes if the password does.
+            </p>
+            <div class="controls">
+              <code class="rk-value" id="rk-value">••••••••••••••••••••••••••••••••</code>
+              <button id="rk-show" class="secondary">Show</button>
+              <button id="rk-copy" class="secondary">Copy</button>
+            </div>
+          </div>
           <div class="controls">
             <button id="rekey" class="secondary">Replace token / change password</button>
             <button id="wipe" class="secondary danger">Clear this device</button>
@@ -143,8 +163,9 @@
             <span id="copied" class="dl-when"></span>
           </div>
           <p class="steps-intro">
-            Only needed if saving fails. Paste this over <code>data/picks.json</code> in the repo
-            and commit.
+            Only needed if saving fails. <b>This shows every pick in the clear</b>, including weeks
+            that are still hidden &mdash; pasting it into <code>data/picks.json</code> before a
+            deadline makes those picks public.
           </p>
         </div>
       </details>
@@ -160,6 +181,7 @@
 </footer>
 
 <script src="assets/nfl.js"></script>
+<script src="assets/seal.js"></script>
 <script>
 (async function () {
   const $ = id => document.getElementById(id);
@@ -167,6 +189,8 @@
   const IDLE_MS = 30 * 60 * 1000;
 
   let league, picks, curWeek, repo, memToken = '', idleTimer;
+  let revealKey = null, sealedPublic, sealedNow = { v: 1, weeks: {} }, sealedPath;
+  const dirty = new Set();          // weeks edited here but not saved yet
 
   /* ================= crypto ================= */
   /* The password is never stored. The GitHub token is sealed with AES-GCM under a
@@ -220,7 +244,7 @@
   }
 
   try {
-    ({ league, picks } = await Survivor.loadConfig());
+    ({ league, picks, sealed: sealedPublic } = await Survivor.loadConfig());
     curWeek = await Survivor.currentWeek(league);
   } catch (e) {
     $('banner').hidden = false;
@@ -231,6 +255,8 @@
   repo = league.repo || {};
   const slug = `${repo.owner}/${repo.name}`;
   $('repo-label').textContent = slug;
+  $('rk-link').href = `https://github.com/${slug}/settings/secrets/actions/new`;
+  sealedPath = league.hiddenPicks.sealedPath;
 
   // Open on the first week that is still taking picks, not one that has already locked.
   let startWeek = curWeek;
@@ -240,7 +266,13 @@
     startWeek++;
   }
 
-  showGate();
+  let wantSetup = false;
+  try { wantSetup = sessionStorage.getItem('survivor_setup') === '1'; sessionStorage.removeItem('survivor_setup'); }
+  catch (e) {}
+  showGate(wantSetup);
+
+  // Locking reloads the page, so no token, key or unsealed pick is left sitting in memory.
+  function lockNow() { location.reload(); }
 
   /* Standing of every player going into `week`: grades the weeks before it that have picks,
      and applies any restart up to and including it. */
@@ -257,6 +289,7 @@
 
   function showGate(forceSetup) {
     memToken = '';
+    revealKey = null;
     clearTimeout(idleTimer);
     $('app').hidden = true;
     $('lock-btn').hidden = true;
@@ -280,6 +313,7 @@
     $('unlock-err').textContent = 'Checking…';
     try {
       memToken = await unseal(readVault(), pw);
+      revealKey = await Seal.revealKeyFromPassword(pw, league.hiddenPicks);
       $('unlock-err').textContent = '';
       unlock();
     } catch (err) {
@@ -311,6 +345,7 @@
         return err('This browser refused to store it. Private browsing?');
       }
       memToken = tok;
+      revealKey = await Seal.revealKeyFromPassword(pw, league.hiddenPicks);
       err('');
       unlock();
     } catch (e2) {
@@ -324,24 +359,38 @@
     e.preventDefault();
     if (confirm('Clear the saved token and password from this device?')) {
       clearVault();
-      showGate(true);
+      lockNow();
     }
   });
 
-  $('lock-btn').addEventListener('click', () => showGate());
-  $('rekey').addEventListener('click', () => showGate(true));
+  $('lock-btn').addEventListener('click', lockNow);
+  $('rekey').addEventListener('click', () => {
+    try { sessionStorage.setItem('survivor_setup', '1'); } catch (e) {}
+    lockNow();
+  });
   $('wipe').addEventListener('click', () => {
     if (confirm('Clear the saved token and password from this device?')) {
       clearVault();
-      showGate(true);
+      lockNow();
     }
+  });
+
+  $('rk-show').addEventListener('click', () => {
+    const shown = $('rk-show').textContent === 'Hide';
+    $('rk-value').textContent = shown ? '••••••••••••••••••••••••••••••••' : Seal.toB64(revealKey);
+    $('rk-show').textContent = shown ? 'Show' : 'Hide';
+  });
+  $('rk-copy').addEventListener('click', async () => {
+    await navigator.clipboard.writeText(Seal.toB64(revealKey));
+    $('rk-copy').textContent = 'Copied';
+    setTimeout(() => { $('rk-copy').textContent = 'Copy'; }, 2000);
   });
 
   /* Auto-lock after a spell of inactivity. */
   function armIdle() {
     clearTimeout(idleTimer);
     idleTimer = setTimeout(() => {
-      if (!$('app').hidden) showGate();
+      if (!$('app').hidden) lockNow();
     }, IDLE_MS);
   }
   ['click', 'keydown', 'change'].forEach(ev =>
@@ -361,6 +410,26 @@
 
     if (booted) return;
     booted = true;
+
+    setStatus('Loading latest picks…', '');
+    try {
+      const { merged, stuck, sealedRemote } = await pullLatest();
+      picks = merged;
+      sealedNow = sealedRemote;
+      paintStuck(stuck);
+      setStatus('', '');
+    } catch (err) {
+      // Fall back to the published copy, which can lag a minute behind the repo.
+      sealedNow = sealedPublic;
+      const stuck = {};
+      for (const w of Object.keys(sealedPublic.weeks)) {
+        try { picks[w] = await Seal.openWeek(revealKey, sealedPublic.weeks[w]); }
+        catch (e) { stuck[w] = sealedPublic.weeks[w]; }
+      }
+      paintStuck(stuck);
+      setStatus(`Could not read the repo directly (${err.message}) — showing the published copy.`, 'err');
+    }
+    paintRevealBar();
 
     const sel = $('week-sel');
     for (let w = league.firstWeek; w <= league.lastWeek; w++) {
@@ -422,6 +491,7 @@
         picks[w] = picks[w] || {};
         league.players.forEach(p => { if (!(p.id in picks[w])) picks[w][p.id] = ''; });
         picks[w][s.dataset.player] = s.value;
+        dirty.add(String(w));
         render();
         setStatus('Unsaved changes.', 'pend');
       }));
@@ -458,12 +528,6 @@
     el.innerHTML = msg;
   }
 
-  function b64(str) {
-    let bin = '';
-    enc.encode(str).forEach(b => { bin += String.fromCharCode(b); });
-    return btoa(bin);
-  }
-
   const ghHeaders = t => ({
     'Authorization': 'Bearer ' + t,
     'Accept': 'application/vnd.github+json',
@@ -477,48 +541,140 @@
       401: 'Token rejected — it may be expired or mistyped.',
       403: 'Token lacks permission. It needs Contents: Read and write on this repo.',
       404: `Cannot see ${slug}. Check the token has this repository selected.`,
-      409: 'Someone else changed the file. Reload and re-enter this week.',
-      422: 'GitHub refused the commit.'
+      409: 'The repo changed while saving. Try again.',
+      422: 'The repo changed while saving (the reveal Action may have just run). Try again.'
     };
     return new Error((map[res.status] || `GitHub returned ${res.status}.`) +
                      (detail ? ` (${detail})` : ''));
   }
 
-  async function currentSha(t) {
-    const url = `https://api.github.com/repos/${repo.owner}/${repo.name}/contents/` +
-                `${repo.picksPath}?ref=${repo.branch}`;
-    const res = await fetch(url, { headers: ghHeaders(t), cache: 'no-store' });
-    if (res.status === 404) return null;
+  const api = p => `https://api.github.com/repos/${repo.owner}/${repo.name}${p}`;
+
+  async function gh(method, p, body) {
+    const res = await fetch(api(p), {
+      method, cache: 'no-store', headers: ghHeaders(memToken),
+      body: body ? JSON.stringify(body) : undefined
+    });
     if (!res.ok) throw await ghError(res);
-    return (await res.json()).sha;
+    return res.json();
   }
 
-  $('save-gh').addEventListener('click', async () => {
-    if (!memToken) return showGate();
-    const week = Number($('week-sel').value);
+  async function ghReadJSON(p, fallback) {
+    const res = await fetch(api(`/contents/${p}?ref=${repo.branch}`),
+                            { headers: ghHeaders(memToken), cache: 'no-store' });
+    if (res.status === 404) return fallback;
+    if (!res.ok) throw await ghError(res);
+    const j = await res.json();
+    return JSON.parse(dec.decode(Seal.fromB64(j.content.replace(/\s/g, ''))));
+  }
+
+  /* Both files go in one commit, so picks.json and sealed.json can never disagree. */
+  async function commitFiles(files, message) {
+    const ref = await gh('GET', `/git/ref/heads/${repo.branch}`);
+    const head = await gh('GET', `/git/commits/${ref.object.sha}`);
+    const tree = await gh('POST', '/git/trees', {
+      base_tree: head.tree.sha,
+      tree: files.map(f => ({ path: f.path, mode: '100644', type: 'blob', content: f.content }))
+    });
+    const commit = await gh('POST', '/git/commits', { message, tree: tree.sha, parents: [ref.object.sha] });
+    await gh('PATCH', `/git/refs/heads/${repo.branch}`, { sha: commit.sha });
+    return commit;
+  }
+
+  /* Latest picks from the repo itself (Pages lags), with hidden weeks unsealed using this
+     device's password. Weeks edited here but not saved keep the local version. */
+  async function pullLatest() {
+    const [rPicks, rSealed] = await Promise.all([
+      ghReadJSON(repo.picksPath, {}),
+      ghReadJSON(sealedPath, { v: 1, weeks: {} })
+    ]);
+    const merged = {}, stuck = {};
+    Object.keys(rPicks).forEach(w => { merged[w] = rPicks[w]; });
+    for (const w of Object.keys(rSealed.weeks)) {
+      try { merged[w] = await Seal.openWeek(revealKey, rSealed.weeks[w]); }
+      catch (e) { stuck[w] = rSealed.weeks[w]; }
+    }
+    dirty.forEach(w => { merged[w] = picks[w]; delete stuck[w]; });
+    return { merged, stuck, sealedRemote: rSealed };
+  }
+
+  async function save(message) {
+    if (!memToken || !revealKey) return lockNow();
     $('save-gh').disabled = true;
+    $('reveal-now').disabled = true;
     setStatus('Saving…', '');
 
     try {
-      const sha = await currentSha(memToken);
-      const url = `https://api.github.com/repos/${repo.owner}/${repo.name}/contents/${repo.picksPath}`;
-      const body = { message: `Week ${week} picks`, content: b64($('out').value), branch: repo.branch };
-      if (sha) body.sha = sha;
+      const { merged, stuck } = await pullLatest();
+      const outPicks = {}, outSealed = { v: 1, weeks: {} }, hidden = [];
 
-      const res = await fetch(url, {
-        method: 'PUT', headers: ghHeaders(memToken), body: JSON.stringify(body)
-      });
-      if (!res.ok) throw await ghError(res);
+      for (const w of Object.keys(merged).map(Number).sort((a, b) => a - b)) {
+        const wd = await Survivor.loadWeek(league, w);
+        if (wd.lockAt && new Date() < wd.lockAt) {
+          // Before the deadline: encrypted. The board only learns who has a pick in.
+          outSealed.weeks[w] = {
+            lockAt: wd.lockAt.toISOString(),
+            submitted: league.players.filter(p => merged[w][p.id]).map(p => p.id),
+            ...(await Seal.sealWeek(revealKey, merged[w]))
+          };
+          hidden.push(w);
+        } else {
+          outPicks[w] = merged[w];
+        }
+      }
+      // Weeks this password cannot open are carried over untouched.
+      Object.assign(outSealed.weeks, stuck);
 
-      const out = await res.json();
-      setStatus(`Saved as <a href="${out.commit.html_url}" target="_blank" rel="noopener">` +
-                `${out.commit.sha.slice(0, 7)}</a>. Board updates in about a minute.`, 'ok');
+      const week = Number($('week-sel').value);
+      const commit = await commitFiles([
+        { path: repo.picksPath, content: JSON.stringify(outPicks, null, 2) + '\n' },
+        { path: sealedPath, content: JSON.stringify(outSealed, null, 2) + '\n' }
+      ], message || `Week ${week} picks` + (hidden.includes(week) ? ' (hidden until the deadline)' : ''));
+
+      picks = merged;
+      sealedNow = outSealed;
+      dirty.clear();
+      paintStuck(stuck);
+      paintRevealBar();
+      await loadWeekUI(week);
+
+      const link = `<a href="${commit.html_url}" target="_blank" rel="noopener">${commit.sha.slice(0, 7)}</a>`;
+      setStatus(hidden.includes(week)
+        ? `Saved as ${link}. Hidden on the board until the deadline.`
+        : `Saved as ${link}. Board updates in about a minute.`, 'ok');
     } catch (err) {
       setStatus(err.message, 'err');
     } finally {
       $('save-gh').disabled = false;
+      $('reveal-now').disabled = false;
     }
-  });
+  }
+
+  function overdueWeeks() {
+    return Object.keys(sealedNow.weeks).filter(w => new Date(sealedNow.weeks[w].lockAt) <= new Date());
+  }
+
+  function paintRevealBar() {
+    const due = overdueWeeks();
+    $('reveal-bar').hidden = !due.length;
+    if (due.length) {
+      $('reveal-text').textContent =
+        `Week ${due.join(', ')} is past the deadline but still hidden on the board. ` +
+        `The reveal Action will get to it, or do it now.`;
+    }
+  }
+
+  function paintStuck(stuck) {
+    const ws = Object.keys(stuck);
+    $('stuck').hidden = !ws.length;
+    $('stuck').textContent = ws.length
+      ? `Week ${ws.join(', ')} was hidden with a different password, so it can't be shown on this device. ` +
+        `Entering that week's picks here and saving will replace it.`
+      : '';
+  }
+
+  $('save-gh').addEventListener('click', () => save());
+  $('reveal-now').addEventListener('click', () => save(`Reveal week ${overdueWeeks().join(', ')} picks`));
 
   /* ================= manual fallback ================= */
 

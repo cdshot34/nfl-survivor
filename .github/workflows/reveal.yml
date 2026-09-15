@@ -1,0 +1,40 @@
+name: Reveal picks
+
+# Unseals each week's picks once its deadline has passed. Scheduled runs on GitHub can lag
+# by several minutes; the board shows "revealing shortly" in the meantime, and admin.html has
+# a Reveal now button if you don't want to wait.
+on:
+  schedule:
+    - cron: '7,22,37,52 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: reveal-picks
+  cancel-in-progress: false
+
+jobs:
+  reveal:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - id: reveal
+        run: node scripts/reveal.js
+        env:
+          REVEAL_KEY: ${{ secrets.REVEAL_KEY }}
+
+      - name: Commit revealed picks
+        if: always() && steps.reveal.outputs.weeks != ''
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/picks.json data/sealed.json
+          git commit -m "Reveal week ${{ steps.reveal.outputs.weeks }} picks"
+          git push

@@ -84,11 +84,57 @@ token. Nothing is lost — the picks live in the repo.
 
 - **Does:** stop anyone else using the pick form, and make the stored token unusable without it —
   so someone at your unlocked laptop still cannot commit.
-- **Doesn't:** hide the picks. `data/picks.json` is in a public repo and readable by anyone.
-  The password guards *writing*, not *reading*.
+- **Also:** keeps picks secret until the deadline — see *Hidden picks* below.
+- **Doesn't:** protect the board. The board is public on purpose.
+
+**Use the same password on every device.** It is also where the key that hides picks comes from,
+so a device with a different password can't open that week's hidden picks.
 
 If a save ever fails, the **Manual fallback** section still has Copy JSON / Download and you can
 paste the file into GitHub by hand.
+
+## Hidden picks
+
+Picks saved before a week's deadline are **encrypted**. The board shows who has a pick in
+(🔒 and "3 of 4 picks in · hidden"), but not which team, until the deadline passes.
+
+Hiding them on the page wouldn't be enough: `data/picks.json` and the commit history are
+public. So the picks never go into the repo as readable text before the deadline:
+
+- **Before the deadline**, a save writes that week to `data/sealed.json`, encrypted with
+  AES-256-GCM. The key comes from your admin password (PBKDF2-SHA256, 600k iterations, using the
+  salt in `league.json`). Every sealed week is padded to the same size, and the commit message
+  just says "hidden until the deadline".
+- **After the deadline**, the **Reveal picks** GitHub Action
+  (`.github/workflows/reveal.yml`) runs every 15 minutes. It unseals any week whose deadline has
+  passed and moves it into `picks.json`, and the board starts grading it.
+
+### One-time setup: the `REVEAL_KEY` secret
+
+The Action needs the key. On `admin.html`, unlock, open **Device settings**, click **Copy** next
+to *Reveal key*, then add it at
+**https://github.com/cdshot34/nfl-survivor/settings/secrets/actions/new**:
+
+- Name: `REVEAL_KEY`
+- Secret: paste the key
+
+GitHub keeps Actions secrets private, even in a public repo. The key comes from your password,
+so it only changes if you change the password — update the secret if you do.
+
+### If the Action doesn't run
+
+GitHub's scheduled runs can lag, and they won't work at all without the secret. Either way,
+`admin.html` shows a **Reveal now** button once a deadline has passed. You can also trigger the
+Action by hand from the repo's **Actions** tab → *Reveal picks* → *Run workflow*.
+
+### Limits worth knowing
+
+- Anyone can copy `sealed.json` and try to guess the password offline. A long password makes that
+  pointless; a short one doesn't. The only thing it would reveal is picks, early.
+- Picks that were already public stay in the git history. Hiding starts from the first save
+  after this was added.
+- The **Manual fallback** JSON on `admin.html` shows every pick in the clear. Pasting it into
+  `picks.json` before a deadline makes those picks public.
 
 ## Files
 
@@ -97,9 +143,13 @@ index.html          the public board
 admin.html          pick entry — password gated, saves straight to GitHub
 assets/nfl.js       ESPN fetching, pick grading, elimination logic
 assets/app.js       renders the board
+assets/seal.js      encrypts and decrypts hidden weeks (browser and the Action)
 assets/style.css    styling
 data/league.json    players, season, rules, repo target
-data/picks.json     written for you by admin.html
+data/picks.json     picks that are public — written by admin.html and the Action
+data/sealed.json    picks still hidden until their deadline
+scripts/reveal.js   unseals weeks past their deadline
+.github/workflows/reveal.yml   runs reveal.js every 15 minutes
 ```
 
 ### `data/picks.json`
@@ -138,8 +188,7 @@ browsers block `fetch` on `file://` URLs.)
 
 - Results come from ESPN's public scoreboard endpoint. No API key, no rate limit worth worrying
   about at four players.
-- Because the repo is public, picks are visible to anyone who reads `data/picks.json`. With four
-  friends that's fine; if you'd rather picks stay hidden until lock, hold them in your texts and
-  only commit them after the deadline passes.
+- Picks stay encrypted until the deadline (see *Hidden picks*). Once a week is revealed, it is
+  public in `data/picks.json` like everything else.
 - A player who picks a team on bye is treated as an invalid pick and eliminated once the week is
   final. The admin dropdown makes this impossible to do by accident.

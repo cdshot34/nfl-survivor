@@ -44,5 +44,10 @@
       "week": 2,
       "note": "Week 1 teams stay burned. Nobody can take their original pick again."
     }
-  ]
+  ],
+  "hiddenPicks": {
+    "salt": "p35V+tV7A6hx1CYUf1PF/A==",
+    "iterations": 600000,
+    "sealedPath": "data/sealed.json"
+  }
 }

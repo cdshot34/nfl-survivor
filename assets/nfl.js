@@ -15,11 +15,13 @@ const Survivor = (() => {
 
   async function loadConfig() {
     const bust = `?v=${Date.now()}`;
-    const [league, picks] = await Promise.all([
+    const [league, picks, sealed] = await Promise.all([
       getJSON('data/league.json' + bust),
-      getJSON('data/picks.json' + bust)
+      getJSON('data/picks.json' + bust),
+      // Weeks whose picks are still encrypted. Missing file just means nothing is hidden.
+      getJSON('data/sealed.json' + bust).catch(() => ({ v: 1, weeks: {} }))
     ]);
-    return { league, picks };
+    return { league, picks, sealed };
   }
 
   /* Which week is the NFL actually in right now? */
