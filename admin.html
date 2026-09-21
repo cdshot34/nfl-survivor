@@ -137,9 +137,13 @@
               repository secret named <code>REVEAL_KEY</code>:
               <a id="rk-link" href="#" target="_blank" rel="noopener">new repository secret</a>.
               The key comes from your password, so it only changes if the password does.
+              To check the secret is right, run the <b>Reveal picks</b> workflow by hand with
+              <i>Check that REVEAL_KEY matches your picks</i> ticked — it passes only if the secret
+              matches the fingerprint below.
             </p>
             <div class="controls">
               <code class="rk-value" id="rk-value">••••••••••••••••••••••••••••••••</code>
+              <span class="rk-fp">fingerprint <b id="rk-fp">—</b></span>
               <button id="rk-show" class="secondary">Show</button>
               <button id="rk-copy" class="secondary">Copy</button>
             </div>
@@ -406,6 +410,7 @@
     $('lock-btn').hidden = false;
     $('save-hint').textContent =
       `Commits to ${slug} · the live board updates about a minute later.`;
+    $('rk-fp').textContent = await Seal.fingerprint(revealKey);
     armIdle();
 
     if (booted) return;
@@ -607,7 +612,9 @@
 
     try {
       const { merged, stuck } = await pullLatest();
-      const outPicks = {}, outSealed = { v: 1, weeks: {} }, hidden = [];
+      const outPicks = {}, hidden = [];
+      // The fingerprint lets the reveal Action confirm its secret is the right key.
+      const outSealed = { v: 1, keyFingerprint: await Seal.fingerprint(revealKey), weeks: {} };
 
       for (const w of Object.keys(merged).map(Number).sort((a, b) => a - b)) {
         const wd = await Survivor.loadWeek(league, w);

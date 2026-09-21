@@ -48,7 +48,14 @@
     return JSON.parse(dec.decode(pt));
   }
 
-  const Seal = { revealKeyFromPassword, sealWeek, openWeek, toB64, fromB64 };
+  /* A short, non-secret tag for a reveal key. Lets the Action say "this secret matches the
+     key your picks were sealed with" without either side handling the key in the open. */
+  async function fingerprint(keyBytes) {
+    const h = await subtle.digest('SHA-256', keyBytes);
+    return [...new Uint8Array(h)].slice(0, 4).map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+
+  const Seal = { revealKeyFromPassword, sealWeek, openWeek, fingerprint, toB64, fromB64 };
   if (typeof module !== 'undefined' && module.exports) module.exports = Seal;
   else root.Seal = Seal;
 })(typeof globalThis !== 'undefined' ? globalThis : window);

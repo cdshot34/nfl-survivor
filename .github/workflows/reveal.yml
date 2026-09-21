@@ -7,6 +7,11 @@ on:
   schedule:
     - cron: '7,22,37,52 * * * *'
   workflow_dispatch:
+    inputs:
+      check_key:
+        description: 'Check that REVEAL_KEY matches your picks'
+        type: boolean
+        default: true
 
 permissions:
   contents: write
@@ -29,6 +34,7 @@ jobs:
         run: node scripts/reveal.js
         env:
           REVEAL_KEY: ${{ secrets.REVEAL_KEY }}
+          CHECK_KEY: ${{ (github.event_name == 'workflow_dispatch' && inputs.check_key) && '1' || '0' }}
 
       - name: Commit revealed picks
         if: always() && steps.reveal.outputs.weeks != ''

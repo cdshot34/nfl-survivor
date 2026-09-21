@@ -142,6 +142,27 @@ to *Reveal key*, then add it at
 GitHub keeps Actions secrets private, even in a public repo. The key comes from your password,
 so it only changes if you change the password — update the secret if you do.
 
+### Checking the secret is right
+
+Don't wait for a deadline to find out. Each save records a short **fingerprint** of the key in
+`sealed.json` — a hash, not the key, and useless to anyone who reads it. The Action compares its
+secret against that fingerprint.
+
+To check: repo → **Actions** → **Reveal picks** → **Run workflow**, leaving
+*Check that REVEAL_KEY matches your picks* ticked. It goes green only if the secret matches the
+fingerprint shown on `admin.html` → Device settings. If it goes red, the log says which of these
+it is:
+
+| Log says | Fix |
+|---|---|
+| "The REVEAL_KEY secret is not set" | Add it |
+| "REVEAL_KEY is not a valid key" | Paste it again, no quotes or spaces |
+| "REVEAL_KEY (…) is not the key your picks were sealed with (…)" | Copy the key from the device you save picks on |
+| "No fingerprint recorded yet" | Save picks once from admin.html first |
+
+Scheduled runs stay quiet about the key until a week is actually due, so a missing secret won't
+spam you until it matters.
+
 ### If the Action doesn't run
 
 GitHub's scheduled runs can lag, and they won't work at all without the secret. Either way,

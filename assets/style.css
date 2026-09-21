@@ -619,3 +619,5 @@ button.danger:hover { background: rgba(227, 75, 82, .14); }
   font-size: .8rem;
   letter-spacing: .02em;
 }
+.rk-fp { font-size: .78rem; color: var(--muted); }
+.rk-fp b { color: var(--ink); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
