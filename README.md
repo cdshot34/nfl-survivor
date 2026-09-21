@@ -11,7 +11,7 @@ ESPN scoreboard. Free to host on GitHub Pages.
 | Rule | Behavior |
 |---|---|
 | One pick per week | One team per player per week |
-| No rebuys | Once you're out, you're out — the row goes dark |
+| No rebuys | Once you're out, you're out — unless the commissioner grants one (below) |
 | Loss = out | Your team loses, you're eliminated |
 | Tie = out | A tie counts as a loss |
 | No team twice | Used teams are removed from the dropdown and flagged on the board |
@@ -45,6 +45,27 @@ From that week on, the players who went out together are alive again. What carri
 
 The 2026 season already has one: all four went out in Week 1 (ARI beat LAC, NYG beat DAL), so
 everyone is back in from Week 2.
+
+### Rebuys
+
+A restart covers a whole wipeout. To bring back **one** player while the others are still in,
+add a `rebuys` entry instead:
+
+```json
+"rebuys": [
+  { "week": 3, "player": "colin", "note": "Colin bought back in after losing Week 2." }
+]
+```
+
+`player` is an id from `players`. From that week the player is alive again, and as with a
+restart their used teams stay burned — the entry dropdown keeps every team they have already
+picked greyed out, in a losing week as much as a winning one. The board shows a 💸 banner and a
+↺ next to their name, and the losing week stays red on the season board.
+
+A rebuy aimed at someone who is still alive does nothing, so a stale entry can't quietly hand
+anyone an extra life. Money side of a rebuy is between you four; the site only tracks who is in.
+
+The 2026 season has one: Colin lost Week 2 with TB and bought back in from Week 3.
 
 > Week 1 of 2026 opens **Wed Sept 9, 8:20 PM ET** (NE @ SEA), so the Week 1 deadline is
 > **Tue Sept 8, 8:20 PM ET**. The site computes this automatically each week — Thursday-opener

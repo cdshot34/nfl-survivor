@@ -49,5 +49,12 @@
     "salt": "p35V+tV7A6hx1CYUf1PF/A==",
     "iterations": 600000,
     "sealedPath": "data/sealed.json"
-  }
+  },
+  "rebuys": [
+    {
+      "week": 3,
+      "player": "colin",
+      "note": "Colin bought back in after losing Week 2. Teams he has already used stay burned."
+    }
+  ]
 }

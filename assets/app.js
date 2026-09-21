@@ -125,15 +125,19 @@
     const b = $('banner');
 
     if (!o) {
-      const rs = table.restarts[table.restarts.length - 1];
-      if (!rs) return;
-      const who = rs.players.length === table.rows.length
-        ? 'Everyone' : rs.players.map(r => r.player.name).join(' & ');
+      // Whichever way people came back in, the most recent one is the news.
+      const events = [...table.restarts, ...table.rebuys].sort((a, b) => a.week - b.week);
+      const ev = events[events.length - 1];
+      if (!ev) return;
+      const who = ev.players.length === table.rows.length
+        ? 'Everyone' : ev.players.map(r => r.player.name).join(' & ');
       b.hidden = false;
       b.className = 'banner restart';
-      b.innerHTML = `<span class="b-emoji">🔄</span><div><b>${who}</b> went down in Week ${rs.outWeek} ` +
-        `&mdash; back in from <b>Week ${rs.week}</b>.` +
-        `<br><span class="b-sub">${rs.note || 'Teams already used stay burned.'}</span></div>`;
+      b.innerHTML = `<span class="b-emoji">${ev.kind === 'rebuy' ? '💸' : '🔄'}</span><div>` +
+        (ev.kind === 'rebuy'
+          ? `<b>${who}</b> bought back in from <b>Week ${ev.week}</b>, after going out in Week ${ev.outWeek}.`
+          : `<b>${who}</b> went down in Week ${ev.outWeek} &mdash; back in from <b>Week ${ev.week}</b>.`) +
+        `<br><span class="b-sub">${ev.note || 'Teams already used stay burned.'}</span></div>`;
       return;
     }
 
@@ -181,8 +185,8 @@
             `<span>${locked ? 'Deadline passed — revealing shortly' : 'Hidden until the deadline'}</span></div></div>`
           : `<div class="pcard-nopick">No pick in yet for Week ${focusWeek}</div>`;
       } else if (rev && rev.week > focusWeek) {
-        pickHTML = `<div class="pcard-back">Out in Week ${rev.outWeek} (${reasonText(rev.outReason)}) ` +
-          `— back in from Week ${rev.week}</div>`;
+        pickHTML = `<div class="pcard-back">Out in Week ${rev.outWeek} (${reasonText(rev.outReason)}) — ` +
+          `${rev.kind === 'rebuy' ? 'bought back in' : 'back in'} from Week ${rev.week}</div>`;
       } else if (cell.team) {
         const g = cell.game;
         pickHTML =

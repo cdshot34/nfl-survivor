@@ -121,8 +121,11 @@ const Survivor = (() => {
     const weekNums = Object.keys(weeks).map(Number).sort((a, b) => a - b);
     const restarts = (league.restarts || [])
       .filter(r => opts.throughWeek == null || r.week <= opts.throughWeek);
-    const restartApplied = [];
-    const timeline = [...new Set([...weekNums, ...restarts.map(r => r.week)])].sort((a, b) => a - b);
+    const rebuys = (league.rebuys || [])
+      .filter(r => opts.throughWeek == null || r.week <= opts.throughWeek);
+    const restartApplied = [], rebuyApplied = [];
+    const timeline = [...new Set([...weekNums, ...restarts.map(r => r.week), ...rebuys.map(r => r.week)])]
+      .sort((a, b) => a - b);
 
     for (const wk of timeline) {
       // A restart only fires after a wipeout: nobody alive, and it brings back exactly the
@@ -132,10 +135,22 @@ const Survivor = (() => {
         const lastOut = Math.max(0, ...league.players.map(p => state[p.id].outWeek || 0));
         const back = league.players.map(p => state[p.id]).filter(s => s.outWeek === lastOut);
         back.forEach(s => {
-          s.revivals.push({ outWeek: s.outWeek, outReason: s.outReason, week: wk });
+          s.revivals.push({ outWeek: s.outWeek, outReason: s.outReason, week: wk, kind: 'restart' });
           s.alive = true; s.outWeek = null; s.outReason = null;
         });
-        if (back.length) restartApplied.push({ ...restart, players: back, outWeek: lastOut });
+        if (back.length) {
+          restartApplied.push({ ...restart, kind: 'restart', players: back, outWeek: lastOut });
+        }
+      }
+
+      // A rebuy brings one named player back from this week, whoever else is still in.
+      for (const rb of rebuys.filter(r => r.week === wk)) {
+        const s = state[rb.player];
+        if (!s || s.alive) continue;
+        const outWeek = s.outWeek;
+        s.revivals.push({ outWeek, outReason: s.outReason, week: wk, kind: 'rebuy' });
+        s.alive = true; s.outWeek = null; s.outReason = null;
+        rebuyApplied.push({ ...rb, kind: 'rebuy', players: [s], outWeek });
       }
 
       const wd = weeks[wk];
@@ -184,7 +199,7 @@ const Survivor = (() => {
       outcome = { kind: 'split-season', players: alive };
     }
 
-    return { rows, alive, outcome, restarts: restartApplied };
+    return { rows, alive, outcome, restarts: restartApplied, rebuys: rebuyApplied };
   }
 
   function usedTeams(league, picks, playerId, throughWeek) {

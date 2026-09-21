@@ -479,7 +479,8 @@
       el.innerHTML =
         `<h3>${p.name}</h3>` +
         `<div class="sub">${dead ? 'Eliminated — pick ignored'
-          : (rev ? `Back in after Week ${rev.outWeek} · ${used.join(', ')} stays burned · ` : '') +
+          : (rev ? `${rev.kind === 'rebuy' ? 'Bought back in' : 'Back in'} after Week ${rev.outWeek} · ` +
+                   `${used.join(', ')} still burned · ` : '') +
             `${32 - new Set(used).size} teams still available`}</div>` +
         `<select data-player="${p.id}" ${dead ? 'disabled' : ''}>${options}</select>`;
       $('entries').appendChild(el);
