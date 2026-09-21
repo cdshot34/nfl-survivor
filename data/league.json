@@ -5,7 +5,7 @@
   "seasonType": 2,
   "firstWeek": 1,
   "lastWeek": 18,
-  "lockHoursBeforeFirstGame": 24,
+  "lockHoursBeforeFirstGame": 12,
   "rules": {
     "allowTeamReuse": false,
     "tieCountsAsLoss": true,

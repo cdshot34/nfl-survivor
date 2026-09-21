@@ -15,7 +15,7 @@ ESPN scoreboard. Free to host on GitHub Pages.
 | Loss = out | Your team loses, you're eliminated |
 | Tie = out | A tie counts as a loss |
 | No team twice | Used teams are removed from the dropdown and flagged on the board |
-| Deadline | 24 hours before the week's **first** kickoff — shown as a live countdown |
+| Deadline | 12 hours before the week's **first** kickoff — shown as a live countdown |
 | Missed pick | Counts as an elimination once that week's games are final |
 | Everyone dies same week | Those players split the pot — unless a restart is declared (below) |
 | Survivor count | Live `N of 4 still alive` strip at the top of the board |
@@ -67,9 +67,11 @@ anyone an extra life. Money side of a rebuy is between you four; the site only t
 
 The 2026 season has one: Colin lost Week 2 with TB and bought back in from Week 3.
 
-> Week 1 of 2026 opens **Wed Sept 9, 8:20 PM ET** (NE @ SEA), so the Week 1 deadline is
-> **Tue Sept 8, 8:20 PM ET**. The site computes this automatically each week — Thursday-opener
-> weeks will lock Wednesday night.
+> The deadline is computed from each week's first kickoff, so a Thursday-night opener locks
+> Thursday morning. Change `lockHoursBeforeFirstGame` in `data/league.json` to move it.
+>
+> A week that is already sealed keeps the deadline it was sealed with — change the setting
+> between weeks, or re-save that week to restamp it.
 
 ## Weekly routine
 
