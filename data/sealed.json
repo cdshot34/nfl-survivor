@@ -1,17 +1,5 @@
 {
   "v": 1,
   "keyFingerprint": "e7fc642c",
-  "weeks": {
-    "3": {
-      "lockAt": "2026-09-24T12:15:00.000Z",
-      "submitted": [
-        "chris",
-        "courtney",
-        "colin",
-        "gavin"
-      ],
-      "iv": "zt1MeNvU1msU0coN",
-      "ct": "vLTt3q4RC4W8zKqZ4cHbvlySly9tLDDiNvC1NPLmU+NuMbWfqM3Ue5KqBpR4A14Lo2LwQgzbErv64iRgJay6jK/KeNBYSvANgjfh9rlOhdvFLBCYRpWPSYetHLkqi8BPWPB8lJNQIZTpZCdyowChttWTPKp0PJYFPWNlJyVWV3xxY1VUsWTufO3wM/p1+AcU6aCTsDVQlGCwwRPoFCZrRd/vnfZ/lAmr54B2JgfFR59u4cfb7xOJanhJmy4xNBwb9pWx1MilPpXoV5YkzF9vZQcmIbZURpWm5EpWR3oAS2VfzD+V2ReCR+ZIOWv1+z/0gjIOJbv6Xa7sHaX4BwwkjN5UwWfDVnE+FlB4dZt9t3bW767auolANRrLnRcrpAz4i6B+havhX0OBsaBe7yFKQzca5dv4F1JhdzMj4pLy6OL2Gv5VbwsetGq1aP1LiXIQgSHEhWxto12CtC81j70VbncicuferzLKpWA7gQIrYo9R1ZSQs1XHh9vMCyBLOUMtQD3taGRNtcfQUmQu8IK5gDt/LXJ5rUP3GHq1rI99AnqPMK36RBdOdBbkCh7Cl4p99o6itq0dpt7rpD1ALOhLp4oJTq4oVFc5aou8NEU9Jk1UFflF1bExyHYRh8DUi3mET3DvBx1OHnla11q4/+JcdbLRwjy8X8N/y1K2nqH6MPpBSADJc3nI+qvySebwrdSi"
-    }
-  }
+  "weeks": {}
 }
