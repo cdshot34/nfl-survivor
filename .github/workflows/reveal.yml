@@ -1,11 +1,18 @@
 name: Reveal picks
 
-# Unseals each week's picks once its deadline has passed. Scheduled runs on GitHub can lag
-# by several minutes; the board shows "revealing shortly" in the meantime, and admin.html has
-# a Reveal now button if you don't want to wait.
+# Unseals each week's picks once its deadline has passed.
+#
+# Hourly, not every 15 minutes. The job itself takes ~15 seconds, but GitHub sometimes makes
+# jobs queue for a runner. On a 15-minute cron a queued job was still waiting when the next one
+# arrived, and the concurrency group cancelled it — which reports as a failed run and sends an
+# alert, every 15 minutes, for a job that never started. Hourly leaves an hour of slack, and
+# there is no concurrency group to cancel anything.
+#
+# A deadline is 12 hours before the week's first kickoff, so up to an hour of lag costs nothing.
+# admin.html has a Reveal now button when you don't want to wait.
 on:
   schedule:
-    - cron: '7,22,37,52 * * * *'
+    - cron: '13 * * * *'
   workflow_dispatch:
     inputs:
       check_key:
@@ -16,13 +23,10 @@ on:
 permissions:
   contents: write
 
-concurrency:
-  group: reveal-picks
-  cancel-in-progress: false
-
 jobs:
   reveal:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
 
@@ -43,4 +47,9 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add data/picks.json data/sealed.json
           git commit -m "Reveal week ${{ steps.reveal.outputs.weeks }} picks"
+          # Someone may have saved picks from admin.html while this ran.
+          for attempt in 1 2 3; do
+            git push && exit 0
+            git pull --rebase origin main
+          done
           git push
