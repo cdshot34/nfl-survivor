@@ -55,6 +55,11 @@
       "week": 3,
       "player": "colin",
       "note": "Colin bought back in after losing Week 2. Teams he has already used stay burned."
+    },
+    {
+      "week": 5,
+      "player": "courtney",
+      "note": "Courtney bought back in after losing Week 4. Teams she has already used stay burned."
     }
   ]
 }
