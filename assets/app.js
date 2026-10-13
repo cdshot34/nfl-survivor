@@ -127,8 +127,11 @@
     if (!o) {
       // Whichever way people came back in, the most recent one is the news.
       const events = [...table.restarts, ...table.rebuys].sort((a, b) => a.week - b.week);
-      const ev = events[events.length - 1];
-      if (!ev) return;
+      const last = events[events.length - 1];
+      if (!last) return;
+      // Several people can rebuy in the same week; announce them together.
+      const same = events.filter(e => e.week === last.week && e.kind === last.kind);
+      const ev = { ...last, players: same.flatMap(e => e.players), outWeek: Math.max(...same.map(e => e.outWeek)) };
       const who = ev.players.length === table.rows.length
         ? 'Everyone' : ev.players.map(r => r.player.name).join(' & ');
       b.hidden = false;

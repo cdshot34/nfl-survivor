@@ -60,6 +60,16 @@
       "week": 5,
       "player": "courtney",
       "note": "Courtney bought back in after losing Week 4. Teams she has already used stay burned."
+    },
+    {
+      "week": 6,
+      "player": "chris",
+      "note": "Chris and Gavin bought back in after losing Week 5. Teams already used stay burned."
+    },
+    {
+      "week": 6,
+      "player": "gavin",
+      "note": "Chris and Gavin bought back in after losing Week 5. Teams already used stay burned."
     }
   ]
 }
